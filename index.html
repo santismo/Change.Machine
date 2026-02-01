@@ -1,0 +1,2103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Change.Machine</title>
+<style>
+:root {
+  --bg: #041404;
+  --fg: #b6ffb0;
+  --muted: #7fbb7a;
+  --accent: #7cff6b;
+  --accent-rgb: 124, 255, 107;
+  --accent-2: #2aff9c;
+  --panel: rgba(3, 16, 6, 0.85);
+  --grid: rgba(124, 255, 107, 0.14);
+  --glow: 0 0 12px rgba(124, 255, 107, 0.4);
+  --shadow: 0 0 32px rgba(0, 0, 0, 0.6);
+  --danger: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+  background: radial-gradient(1200px 600px at 30% 10%, rgba(var(--accent-rgb),0.08), transparent 60%),
+              radial-gradient(800px 400px at 80% 90%, rgba(var(--accent-rgb),0.06), transparent 60%),
+              var(--bg);
+  color: var(--fg);
+  letter-spacing: 0.02em;
+  overflow: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.25) 0px,
+    rgba(0,0,0,0.25) 1px,
+    rgba(255,255,255,0.02) 2px,
+    rgba(0,0,0,0.2) 3px
+  );
+  mix-blend-mode: overlay;
+  opacity: 0.35;
+}
+
+#app {
+  height: calc(100vh - 20px);
+  display: flex;
+  flex-direction: column;
+  border: 2px solid rgba(var(--accent-rgb),0.3);
+  border-radius: 16px;
+  margin: 10px;
+  box-shadow: var(--shadow), inset 0 0 40px rgba(var(--accent-rgb),0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+#app::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.6) 100%);
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+#app::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 3px 3px;
+  opacity: 0.08;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+#controls {
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(3,16,6,0.98), rgba(3,16,6,0.9));
+  border-bottom: 1px solid rgba(var(--accent-rgb),0.3);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  flex: 0 0 auto;
+  max-height: calc(100vh - 280px - 24px);
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: rgba(var(--accent-rgb), 0.55) rgba(var(--accent-rgb), 0.12);
+}
+
+#controls::-webkit-scrollbar { width: 8px; height: 8px; }
+#controls::-webkit-scrollbar-thumb { background: rgba(var(--accent-rgb), 0.5); border-radius: 999px; }
+#controls::-webkit-scrollbar-track { background: rgba(var(--accent-rgb), 0.12); border-radius: 999px; }
+
+#brand {
+  grid-column: 1 / -1;
+  font-size: 18px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: var(--glow);
+  padding: 4px 2px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid rgba(var(--accent-rgb),0.2);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: inset 0 0 12px rgba(var(--accent-rgb),0.08);
+}
+
+.panel h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: var(--glow);
+  letter-spacing: 0.12em;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.field label { color: var(--muted); }
+
+input, select, button {
+  background: rgba(0,0,0,0.5);
+  color: var(--fg);
+  border: 1px solid rgba(var(--accent-rgb),0.3);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+input[type="range"]::-webkit-slider-runnable-track { height: 6px; background: rgba(var(--accent-rgb), 0.25); border-radius: 999px; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: var(--glow); border: none; margin-top: -3px; }
+input[type="range"]::-moz-range-track { height: 6px; background: rgba(var(--accent-rgb), 0.25); border-radius: 999px; }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: none; box-shadow: var(--glow); }
+
+button {
+  cursor: pointer;
+  box-shadow: var(--glow);
+}
+
+button.primary {
+  background: linear-gradient(180deg, rgba(var(--accent-rgb),0.2), rgba(var(--accent-rgb),0.05));
+  border-color: rgba(var(--accent-rgb),0.6);
+}
+
+button:active { transform: translateY(1px); }
+
+.controls-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb),0.4);
+  background: rgba(var(--accent-rgb),0.08);
+  color: var(--fg);
+  text-decoration: none;
+  cursor: grab;
+  user-select: none;
+}
+
+#rollWrap {
+  --scroll-size: 26px;
+  position: relative;
+  flex: 0 0 280px;
+  height: 280px;
+  background: rgba(0,0,0,0.55);
+}
+
+#rollGrid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: var(--scroll-size) 1fr;
+  gap: 4px;
+}
+
+#roll {
+  width: 100%;
+  height: 100%;
+  display: block;
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+}
+
+#scrollTimeWrap {
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  border-radius: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  text-shadow: var(--glow);
+  padding: 2px 4px;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#scrollTimeWrap {
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+}
+
+#statusBar {
+  position: absolute;
+  left: 10px;
+  top: calc(var(--scroll-size) + 8px);
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(var(--accent-rgb),0.3);
+  border-radius: 8px;
+  font-size: 12px;
+  text-shadow: var(--glow);
+}
+
+#chordInfo {
+  position: absolute;
+  right: 10px;
+  top: calc(var(--scroll-size) + 8px);
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(var(--accent-rgb),0.3);
+  border-radius: 8px;
+  font-size: 12px;
+  text-shadow: var(--glow);
+}
+
+.small-note {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.hidden { display: none; }
+
+@media (max-width: 900px) {
+  #rollWrap { flex-basis: 240px; height: 240px; }
+  #rollWrap { --scroll-size: 24px; }
+  #rollGrid { inset: 0; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="controls">
+    <div id="brand">Change.Machine</div>
+    <section class="panel">
+      <h3>Structure / Timing</h3>
+      <div class="field"><label for="bars">Bars</label><input id="bars" type="range" min="1" max="64" value="8" /></div>
+      <div class="field"><label for="timeSig">Time Sig</label>
+        <select id="timeSig">
+          <option>4/4</option>
+          <option>3/4</option>
+          <option>6/8</option>
+        </select>
+      </div>
+      <div class="field"><label for="tempo">Tempo (BPM)</label><input id="tempo" type="range" min="40" max="220" value="120" /></div>
+      <div class="field"><label for="density">Harmonic Density</label>
+        <select id="density">
+          <option value="1">1 chord per bar</option>
+          <option value="2">2 chords per bar</option>
+          <option value="4">4 chords per bar</option>
+          <option value="varied">Varied (musical)</option>
+        </select>
+      </div>
+      <div class="field"><label for="comping">Comping Mode</label>
+        <select id="comping">
+          <option value="sustain">Sustained blocks</option>
+          <option value="comping">Simple comping</option>
+        </select>
+      </div>
+      <div class="controls-row">
+        <button id="generate" class="primary">Generate</button>
+        <button id="randomAll">Randomize All</button>
+        <button id="play" class="primary">Play</button>
+        <button id="stop">Stop</button>
+      </div>
+      <div class="controls-row">
+        <button id="prev">Prev</button>
+        <button id="next">Next</button>
+      </div>
+      <div class="small-note">Space toggles play. Left/Right steps chords.</div>
+    </section>
+
+    <section class="panel">
+      <h3>Musical Intent</h3>
+      <div class="field"><label for="genre">Genre / Style</label>
+        <select id="genre">
+          <option>Pop</option>
+          <option>Rock</option>
+          <option>Blues</option>
+          <option>Jazz</option>
+          <option>Bebop</option>
+          <option>Modal Jazz</option>
+          <option>Funk</option>
+          <option>Metal</option>
+          <option>Prog Rock</option>
+          <option>Classical</option>
+          <option>Baroque</option>
+          <option>EDM</option>
+        </select>
+      </div>
+      <div class="field"><label for="key">Key</label>
+        <select id="key">
+          <option>Any</option>
+          <option>C</option><option>C#</option><option>D</option><option>Eb</option><option>E</option><option>F</option>
+          <option>F#</option><option>G</option><option>Ab</option><option>A</option><option>Bb</option><option>B</option>
+        </select>
+      </div>
+      <div class="field"><label for="scale">Scale / Mode</label>
+        <select id="scale">
+          <option>Any</option>
+          <option>Major</option>
+          <option>Natural Minor</option>
+          <option>Harmonic Minor</option>
+          <option>Melodic Minor</option>
+          <option>Dorian</option>
+          <option>Mixolydian</option>
+          <option>Phrygian</option>
+          <option>Blues</option>
+          <option>Jazz Minor Modes</option>
+        </select>
+      </div>
+      <div class="field"><label for="mood">Mood</label>
+        <select id="mood">
+          <option>Bright</option>
+          <option>Dark</option>
+          <option>Tense</option>
+          <option>Dreamy</option>
+          <option>Aggressive</option>
+          <option>Chill</option>
+        </select>
+      </div>
+      <div class="field"><label for="seed">Random Seed</label><input id="seed" type="text" value="CM-1" /></div>
+      <div class="controls-row">
+        <button id="seedRand">New Seed</button>
+        <button id="copyUrl">Copy URL</button>
+      </div>
+      <div class="small-note" id="actualKey">Actual: C Major</div>
+    </section>
+
+    <section class="panel">
+      <h3>Progression Engine</h3>
+      <div class="field"><label for="engine">Engine</label>
+        <select id="engine">
+          <option value="random">Random (guided)</option>
+          <option value="template">Deterministic Template</option>
+          <option value="shape">Deterministic Shape</option>
+        </select>
+      </div>
+      <div class="field"><label for="shape">Movement / Shape</label>
+        <select id="shape">
+          <option value="circle">Circle of fifths</option>
+          <option value="asc">Ascending bass line</option>
+          <option value="desc">Descending bass line</option>
+          <option value="pedal_tonic">Pedal tone (tonic)</option>
+          <option value="pedal_dom">Pedal tone (dominant)</option>
+          <option value="planing">Planing / parallel</option>
+          <option value="vamp">Modal vamp</option>
+          <option value="chromatic">Chromatic approach</option>
+        </select>
+      </div>
+      <div class="field"><label for="cadence">Cadence Gravity</label>
+        <select id="cadence">
+          <option value="strong">Strong cadences</option>
+          <option value="balanced">Balanced</option>
+          <option value="floating">Floating</option>
+        </select>
+      </div>
+      <div class="field"><label for="template">Genre Template</label>
+        <select id="template"></select>
+      </div>
+      <div class="field"><label for="tritone">Tritone Subs</label><input id="tritone" type="checkbox" /></div>
+      <div class="field"><label for="powerPrefer">Power Chord Pref</label><input id="powerPrefer" type="checkbox" /></div>
+      <div class="small-note">Deterministic templates are stable by key + length.</div>
+    </section>
+
+    <section class="panel">
+      <h3>Voicing / Orchestration</h3>
+      <div class="field"><label for="complexity">Chord Complexity</label>
+        <select id="complexity">
+          <option value="triad">Triads</option>
+          <option value="7">7ths</option>
+          <option value="9">9ths</option>
+          <option value="11">11ths</option>
+          <option value="13">13ths</option>
+          <option value="genre">Genre typical</option>
+        </select>
+      </div>
+      <div class="field"><label for="voicing">Voicing Style</label>
+        <select id="voicing">
+          <option value="close">Close position</option>
+          <option value="open">Open position</option>
+          <option value="drop2">Drop-2</option>
+          <option value="quartal">Quartal</option>
+          <option value="upper">Upper-structure</option>
+          <option value="power">Power chords</option>
+        </select>
+      </div>
+      <div class="field"><label for="rootRegister">Root Register</label><input id="rootRegister" type="number" min="36" max="60" value="48" /></div>
+      <div class="field"><label for="spread">Spread Amount</label><input id="spread" type="range" min="0" max="24" value="12" /></div>
+      <div class="field"><label for="wide">Wide phrasing</label><input id="wide" type="checkbox" /></div>
+      <div class="field"><label for="smoothness">Voice-leading</label>
+        <select id="smoothness">
+          <option value="smooth">Smooth</option>
+          <option value="balanced" selected>Balanced</option>
+          <option value="angular">Angular</option>
+        </select>
+      </div>
+      <div class="field"><label for="avoidMud">Avoid mud</label><input id="avoidMud" type="checkbox" checked /></div>
+      <div class="field"><label for="mudThreshold">Mud threshold</label><input id="mudThreshold" type="number" min="45" max="65" value="55" /></div>
+      <div class="field"><label for="bassMin">Bass min</label><input id="bassMin" type="number" min="28" max="48" value="36" /></div>
+      <div class="field"><label for="topLine">Top-line guide</label><input id="topLine" type="checkbox" /></div>
+      <div class="field"><label for="volume">Volume</label><input id="volume" type="range" min="0" max="1" step="0.01" value="0.6" /></div>
+    </section>
+
+    <section class="panel">
+      <h3>MIDI Export</h3>
+      <div class="controls-row">
+        <button id="download" class="primary">Download MIDI</button>
+        <a id="midiClip" class="badge" download="progression.mid" draggable="true">MIDI Clip</a>
+      </div>
+      <div class="small-note">Drag the MIDI Clip into Logic if possible. Download is reliable.</div>
+    </section>
+
+    <section class="panel">
+      <h3>Theme</h3>
+      <div class="field"><label for="theme">Theme</label>
+        <select id="theme">
+          <option value="green">Green</option>
+          <option value="amber">Amber</option>
+          <option value="yellow">Yellow</option>
+          <option value="white">White</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="field"><label for="customAccent">Custom Accent</label><input id="customAccent" type="color" value="#7cff6b" /></div>
+      <div class="field"><label for="customBg">Custom BG</label><input id="customBg" type="color" value="#041404" /></div>
+    </section>
+
+    <section class="panel">
+      <h3>MIDI I/O (experimental)</h3>
+      <div class="controls-row">
+        <button id="midiEnable">Enable MIDI</button>
+        <label class="small-note" id="midiStatus">Not enabled</label>
+      </div>
+      <div class="field"><label for="midiOut">MIDI Output</label><select id="midiOut"></select></div>
+      <div class="field"><label for="liveMidi">Live MIDI Out</label><input id="liveMidi" type="checkbox" /></div>
+      <div class="field"><label for="midiIn">MIDI Input</label><select id="midiIn"></select></div>
+      <div class="field"><label for="extTransport">External Transport</label><input id="extTransport" type="checkbox" /></div>
+      <div class="small-note">Web MIDI typically works in Chrome-family browsers; GitHub Pages is HTTPS so it is allowed.</div>
+    </section>
+  </header>
+
+  <main id="rollWrap">
+    <div id="rollGrid">
+      <canvas id="roll"></canvas>
+      <div id="scrollTimeWrap">
+        <input id="scrollTime" type="range" min="0" max="0" step="0.25" value="0" aria-label="Time Scroll" />
+      </div>
+    </div>
+    <div id="statusBar">Ready</div>
+    <div id="chordInfo">Chord 1/1</div>
+  </main>
+</div>
+
+<script>
+// -------------------------------
+// State + Settings + URL handling
+// -------------------------------
+const defaultSettings = {
+  bars: 8,
+  timeSig: "4/4",
+  tempo: 120,
+  density: "1",
+  comping: "sustain",
+  genre: "Pop",
+  key: "Any",
+  scale: "Any",
+  mood: "Bright",
+  seed: "CM-1",
+  engine: "random",
+  shape: "circle",
+  cadence: "strong",
+  template: "",
+  tritone: false,
+  powerPrefer: false,
+  complexity: "genre",
+  voicing: "close",
+  rootRegister: 48,
+  spread: 12,
+  wide: false,
+  smoothness: "balanced",
+  avoidMud: true,
+  mudThreshold: 55,
+  bassMin: 36,
+  topLine: false,
+  volume: 0.55,
+  theme: "green",
+  customAccent: "#7cff6b",
+  customBg: "#041404"
+};
+
+const state = {
+  settings: { ...defaultSettings },
+  chords: [],
+  noteEvents: [],
+  totalBeats: 0,
+  actualKey: "C",
+  actualScale: "Major",
+  playing: false,
+  playStartTime: 0,
+  playheadBeat: 0,
+  selectedChord: 0,
+  generateCount: 0,
+  themeAccent: { r: 124, g: 255, b: 107 },
+  view: {
+    offsetBeat: 0,
+    ppb: 80,
+    offsetNote: 36,
+    pps: 8,
+    rangeMin: 36,
+    rangeMax: 84,
+    pitchMap: [],
+    pitchIndex: {}
+  },
+  drag: {
+    active: false,
+    startX: 0,
+    startY: 0,
+    startOffsetBeat: 0,
+    startOffsetNote: 36,
+    moved: false
+  },
+  midi: {
+    access: null,
+    outputs: [],
+    inputs: [],
+    output: null,
+    input: null,
+    live: false,
+    externalTransport: false,
+    clockCount: 0
+  }
+};
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+const controls = {
+  bars: $("#bars"),
+  timeSig: $("#timeSig"),
+  tempo: $("#tempo"),
+  density: $("#density"),
+  comping: $("#comping"),
+  genre: $("#genre"),
+  key: $("#key"),
+  scale: $("#scale"),
+  mood: $("#mood"),
+  seed: $("#seed"),
+  engine: $("#engine"),
+  shape: $("#shape"),
+  cadence: $("#cadence"),
+  template: $("#template"),
+  tritone: $("#tritone"),
+  powerPrefer: $("#powerPrefer"),
+  complexity: $("#complexity"),
+  voicing: $("#voicing"),
+  rootRegister: $("#rootRegister"),
+  spread: $("#spread"),
+  wide: $("#wide"),
+  smoothness: $("#smoothness"),
+  avoidMud: $("#avoidMud"),
+  mudThreshold: $("#mudThreshold"),
+  bassMin: $("#bassMin"),
+  topLine: $("#topLine"),
+  volume: $("#volume"),
+  theme: $("#theme"),
+  customAccent: $("#customAccent"),
+  customBg: $("#customBg")
+};
+
+const ui = {
+  generate: $("#generate"),
+  randomAll: $("#randomAll"),
+  play: $("#play"),
+  stop: $("#stop"),
+  prev: $("#prev"),
+  next: $("#next"),
+  status: $("#statusBar"),
+  chordInfo: $("#chordInfo"),
+  actualKey: $("#actualKey"),
+  download: $("#download"),
+  midiClip: $("#midiClip"),
+  seedRand: $("#seedRand"),
+  copyUrl: $("#copyUrl"),
+  roll: $("#roll"),
+  scrollTime: $("#scrollTime"),
+  scrollTimeWrap: $("#scrollTimeWrap"),
+  midiEnable: $("#midiEnable"),
+  midiStatus: $("#midiStatus"),
+  midiOut: $("#midiOut"),
+  midiIn: $("#midiIn"),
+  liveMidi: $("#liveMidi"),
+  extTransport: $("#extTransport")
+};
+
+const SETTINGS_MAP = {
+  b: "bars",
+  ts: "timeSig",
+  t: "tempo",
+  d: "density",
+  c: "comping",
+  g: "genre",
+  k: "key",
+  sc: "scale",
+  m: "mood",
+  sd: "seed",
+  eng: "engine",
+  sh: "shape",
+  cad: "cadence",
+  tpl: "template",
+  tri: "tritone",
+  pwr: "powerPrefer",
+  cx: "complexity",
+  vs: "voicing",
+  rr: "rootRegister",
+  sp: "spread",
+  wp: "wide",
+  vl: "smoothness",
+  am: "avoidMud",
+  mt: "mudThreshold",
+  bm: "bassMin",
+  tg: "topLine",
+  vol: "volume",
+  th: "theme",
+  ca: "customAccent",
+  cb: "customBg"
+};
+
+function serializeSettings(settings) {
+  const params = new URLSearchParams();
+  for (const [short, key] of Object.entries(SETTINGS_MAP)) {
+    const value = settings[key];
+    if (value === undefined) continue;
+    params.set(short, String(value));
+  }
+  return params.toString();
+}
+
+function parseSettingsFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const next = { ...defaultSettings };
+  for (const [short, key] of Object.entries(SETTINGS_MAP)) {
+    if (!params.has(short)) continue;
+    let value = params.get(short);
+    if (["bars","tempo","rootRegister","spread","mudThreshold","bassMin"].includes(key)) {
+      value = Number(value);
+    } else if (["tritone","powerPrefer","wide","avoidMud","topLine"].includes(key)) {
+      value = value === "true" || value === "1";
+    } else if (key === "volume") {
+      value = Number(value);
+    }
+    next[key] = value;
+  }
+  return next;
+}
+
+function applySettingsToUI(settings) {
+  for (const [key, el] of Object.entries(controls)) {
+    if (!(key in settings)) continue;
+    if (el.type === "checkbox") el.checked = Boolean(settings[key]);
+    else el.value = settings[key];
+  }
+}
+
+function readSettingsFromUI() {
+  const next = { ...state.settings };
+  for (const [key, el] of Object.entries(controls)) {
+    if (el.type === "checkbox") next[key] = el.checked;
+    else if (el.type === "number" || el.type === "range") next[key] = Number(el.value);
+    else next[key] = el.value;
+  }
+  next.bars = Math.min(64, Math.max(1, next.bars));
+  next.tempo = Math.min(220, Math.max(40, next.tempo));
+  next.rootRegister = Math.min(60, Math.max(36, next.rootRegister));
+  next.mudThreshold = Math.min(65, Math.max(45, next.mudThreshold));
+  next.bassMin = Math.min(48, Math.max(28, next.bassMin));
+  next.volume = Math.min(1, Math.max(0, next.volume));
+  return next;
+}
+
+function updateUrl(settings) {
+  const query = serializeSettings(settings);
+  history.replaceState(null, "", `${location.pathname}?${query}`);
+}
+
+// -------------------------------
+// Seeded RNG
+// -------------------------------
+function xmur3(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return function() {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^= h >>> 16) >>> 0;
+  };
+}
+
+function sfc32(a, b, c, d) {
+  return function() {
+    a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+    let t = (a + b) | 0;
+    a = b ^ (b >>> 9);
+    b = (c + (c << 3)) | 0;
+    c = (c << 21) | (c >>> 11);
+    d = (d + 1) | 0;
+    t = (t + d) | 0;
+    c = (c + t) | 0;
+    return (t >>> 0) / 4294967296;
+  };
+}
+
+function createRng(seedStr) {
+  const seed = xmur3(seedStr);
+  return sfc32(seed(), seed(), seed(), seed());
+}
+
+function chooseWeighted(rng, items) {
+  const total = items.reduce((sum, it) => sum + it.weight, 0);
+  let r = rng() * total;
+  for (const it of items) {
+    r -= it.weight;
+    if (r <= 0) return it.value;
+  }
+  return items[items.length - 1].value;
+}
+
+// -------------------------------
+// Theory helpers
+// -------------------------------
+const NOTE_NAMES_SHARP = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const NOTE_NAMES_FLAT = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
+const KEY_PC = {
+  "C":0,"C#":1,"Db":1,"D":2,"Eb":3,"E":4,"F":5,"F#":6,"Gb":6,"G":7,"Ab":8,"A":9,"Bb":10,"B":11
+};
+
+const SCALE_INTERVALS = {
+  "Major": [0,2,4,5,7,9,11],
+  "Natural Minor": [0,2,3,5,7,8,10],
+  "Harmonic Minor": [0,2,3,5,7,8,11],
+  "Melodic Minor": [0,2,3,5,7,9,11],
+  "Dorian": [0,2,3,5,7,9,10],
+  "Mixolydian": [0,2,4,5,7,9,10],
+  "Phrygian": [0,1,3,5,7,8,10],
+  "Blues": [0,3,5,6,7,10],
+  "Jazz Minor Modes": [0,2,3,5,7,9,11]
+};
+
+const GENRE_SCALE_DEFAULTS = {
+  "Pop": "Major",
+  "Rock": "Mixolydian",
+  "Blues": "Blues",
+  "Jazz": "Major",
+  "Bebop": "Major",
+  "Modal Jazz": "Dorian",
+  "Funk": "Mixolydian",
+  "Metal": "Phrygian",
+  "Prog Rock": "Mixolydian",
+  "Classical": "Major",
+  "Baroque": "Major",
+  "EDM": "Natural Minor"
+};
+
+const GENRE_KEY_POOLS = {
+  "Pop": ["C","G","D","A","E","F"],
+  "Rock": ["E","A","D","G","C"],
+  "Blues": ["E","A","G","C","D"],
+  "Jazz": ["Bb","Eb","F","C","G"],
+  "Bebop": ["Bb","Eb","F","C"],
+  "Modal Jazz": ["D","E","A","G"],
+  "Funk": ["E","A","D"],
+  "Metal": ["E","F#","D","C"],
+  "Prog Rock": ["E","A","D","C"],
+  "Classical": ["C","G","D","F"],
+  "Baroque": ["D","G","C"],
+  "EDM": ["F","G","A","C"]
+};
+
+function beatsPerBar(timeSig) {
+  const [n, d] = timeSig.split("/").map(Number);
+  return n * (4 / d);
+}
+
+function intervalByDegreeOffset(scale, rootIndex, degreeOffset) {
+  const len = scale.length;
+  const idx = rootIndex + degreeOffset;
+  const oct = Math.floor(idx / len);
+  const pc = scale[(idx % len + len) % len];
+  const rootPc = scale[rootIndex];
+  return pc + 12 * oct - rootPc;
+}
+
+function romanToDegree(roman) {
+  const match = roman.match(/^([b#]{0,2})?([ivIV]+)(.*)$/);
+  if (!match) return null;
+  const altStr = match[1] || "";
+  const base = match[2];
+  let suffix = match[3] || "";
+  const upper = base.toUpperCase();
+  const isLower = base === base.toLowerCase();
+  const degreeMap = { I:0, II:1, III:2, IV:3, V:4, VI:5, VII:6 };
+  let degree = degreeMap[upper] ?? 0;
+  const slashMatch = suffix.match(/\/([ivIV]+)/);
+  if (slashMatch) {
+    const target = slashMatch[1].toUpperCase();
+    const targetDegree = degreeMap[target] ?? degree;
+    degree = (targetDegree + 4) % 7;
+    suffix = suffix.replace(/\/.+$/, "");
+  }
+  let alt = 0;
+  for (const ch of altStr) alt += ch === "b" ? -1 : 1;
+  let quality = isLower ? "min" : "maj";
+  if (/dim|o/.test(suffix)) quality = "dim";
+  if (/ø/.test(suffix)) quality = "halfdim";
+  if (/maj7|M7/i.test(suffix)) quality = "maj7";
+  else if (/m7/.test(suffix)) quality = "min7";
+  else if (/7/.test(suffix)) quality = isLower ? "min7" : "dom7";
+  if (/sus4/i.test(suffix)) quality = "sus4";
+  if (/sus2/i.test(suffix)) quality = "sus2";
+  if (/5/.test(suffix)) quality = "power";
+  return { degree, alt, quality, roman };
+}
+
+function noteName(pc, preferFlats) {
+  return (preferFlats ? NOTE_NAMES_FLAT : NOTE_NAMES_SHARP)[(pc + 12) % 12];
+}
+
+// -------------------------------
+// Progression engines + templates
+// -------------------------------
+const GENRE_TEMPLATES = {
+  "Pop": [
+    { id: "pop_1456", name: "4-chord loop: I-V-vi-IV", seq: ["I","V","vi","IV"] },
+    { id: "pop_1645", name: "I-vi-IV-V", seq: ["I","vi","IV","V"] },
+    { id: "pop_6415", name: "vi-IV-I-V", seq: ["vi","IV","I","V"] },
+    { id: "pop_pre", name: "Pre-chorus lift: ii-IV-V-I", seq: ["ii","IV","V","I"] }
+  ],
+  "Rock": [
+    { id: "rock_mix", name: "I-bVII-IV", seq: ["I","bVII","IV"] },
+    { id: "rock_minor", name: "i-bVII-bVI-bVII", seq: ["i","bVII","bVI","bVII"] },
+    { id: "rock_pedal", name: "Pedal riff (power)", seq: ["I5","bVII5","I5","IV5"] }
+  ],
+  "Blues": [
+    { id: "blues_12", name: "12-bar (dominant 7ths)", seq: ["I7","I7","I7","I7","IV7","IV7","I7","I7","V7","IV7","I7","V7"] },
+    { id: "blues_quick", name: "Quick change", seq: ["I7","IV7","I7","I7","IV7","IV7","I7","I7","V7","IV7","I7","V7"] },
+    { id: "blues_jazz", name: "Jazz blues (ii-V)", seq: ["I7","IV7","I7","I7","IV7","#IVdim","I7","VI7","ii7","V7","I7","V7"] }
+  ],
+  "Jazz": [
+    { id: "jazz_iivi", name: "ii-V-I chain", seq: ["ii7","V7","Imaj7","vi7","ii7","V7","Imaj7","Imaj7"] },
+    { id: "jazz_rhythm", name: "Rhythm changes A", seq: ["Imaj7","VI7","ii7","V7"] },
+    { id: "jazz_backdoor", name: "Backdoor cadence", seq: ["iv7","bVII7","Imaj7"] }
+  ],
+  "Bebop": [
+    { id: "bebop_iivi", name: "ii-V-I chain", seq: ["ii7","V7","Imaj7","VI7","ii7","V7","Imaj7","Imaj7"] },
+    { id: "bebop_rhythm", name: "Rhythm changes A", seq: ["Imaj7","VI7","ii7","V7"] },
+    { id: "bebop_backdoor", name: "Backdoor cadence", seq: ["iv7","bVII7","Imaj7"] }
+  ],
+  "Modal Jazz": [
+    { id: "modal_dorian", name: "Dorian vamp with colors", seq: ["i7","IV7"] },
+    { id: "modal_sowhat", name: "So-What quartal stacks", seq: ["i11","bIII11"] }
+  ],
+  "Funk": [
+    { id: "funk_dom", name: "Dominant vamp + ii-V", seq: ["I7","I7","ii7","V7"] },
+    { id: "funk_minor", name: "Minor funk vamp", seq: ["i7","bVI7","bVII7","i7"] }
+  ],
+  "Metal": [
+    { id: "metal_phry", name: "Phrygian pedal", seq: ["i","bII","i","bVII"] },
+    { id: "metal_chrom", name: "Chromatic mediants", seq: ["i","bVI","I","bIII"] }
+  ],
+  "Prog Rock": [
+    { id: "prog_third", name: "Modulation by third", seq: ["I","bIII","V","bVI"] },
+    { id: "prog_odd", name: "Odd cadence points", seq: ["I","V","bVII","IV","I"] }
+  ],
+  "Classical": [
+    { id: "class_period", name: "Period form (HC then PAC)", seq: ["I","IV","V","V","I","vi","ii","V","I"] },
+    { id: "class_circle", name: "Circle of fifths + cadence", seq: ["I","IV","viidim","iii","vi","ii","V","I"] },
+    { id: "class_decept", name: "Deceptive cadence", seq: ["I","IV","V","vi","ii","V","I"] }
+  ],
+  "Baroque": [
+    { id: "baroque_seq", name: "Descending fifths sequence", seq: ["I","IV","viidim","iii","vi","ii","V","I"] },
+    { id: "baroque_ground", name: "Ground bass", seq: ["i","bVII","bVI","V"] },
+    { id: "baroque_secdom", name: "Secondary dominants", seq: ["I","V/V","V","I","ii","V","I"] }
+  ],
+  "EDM": [
+    { id: "edm_minor", name: "Minor loop w/ mixture", seq: ["i","bVI","bIII","bVII"] },
+    { id: "edm_ramp", name: "Tension ramp extensions", seq: ["i"] }
+  ]
+};
+
+function getTemplatesForGenre(genre) {
+  return GENRE_TEMPLATES[genre] || GENRE_TEMPLATES["Pop"];
+}
+
+function chooseKey(settings, rng) {
+  if (settings.key !== "Any") return settings.key;
+  const pool = GENRE_KEY_POOLS[settings.genre] || ["C","G","D","A","E","F"];
+  return pool[Math.floor(rng() * pool.length)];
+}
+
+function chooseScale(settings, rng) {
+  if (settings.scale !== "Any") return settings.scale;
+  if (settings.mood === "Dark" || settings.mood === "Aggressive") {
+    return ["Natural Minor","Harmonic Minor","Phrygian"][Math.floor(rng() * 3)];
+  }
+  if (settings.genre === "Metal") return "Phrygian";
+  if (settings.genre === "Blues") return "Blues";
+  return GENRE_SCALE_DEFAULTS[settings.genre] || "Major";
+}
+
+function expandSequence(seq, count, cadence) {
+  const out = [];
+  while (out.length < count) out.push(...seq);
+  out.length = count;
+  if (count >= 2) {
+    if (cadence === "strong") {
+      out[count - 2] = out[count - 2].includes("V") ? out[count - 2] : "V";
+      out[count - 1] = out[count - 1].toLowerCase().includes("i") ? "i" : "I";
+    } else if (cadence === "floating") {
+      out[count - 1] = out[count - 1].toLowerCase().includes("i") ? "iv" : "IV";
+    }
+  }
+  return out;
+}
+
+function buildChordSlots(settings, rng) {
+  const barBeats = beatsPerBar(settings.timeSig);
+  const slots = [];
+  for (let bar = 0; bar < settings.bars; bar++) {
+    let chordsPerBar = 1;
+    if (settings.density === "1") chordsPerBar = 1;
+    else if (settings.density === "2") chordsPerBar = 2;
+    else if (settings.density === "4") chordsPerBar = 4;
+    else {
+      chordsPerBar = chooseWeighted(rng, [
+        { value: 1, weight: 3 },
+        { value: 2, weight: 4 },
+        { value: 4, weight: 2 }
+      ]);
+    }
+    const dur = barBeats / chordsPerBar;
+    for (let i = 0; i < chordsPerBar; i++) {
+      slots.push({ startBeat: bar * barBeats + i * dur, duration: dur });
+    }
+  }
+  return slots;
+}
+
+function shapeSequence(shape, count, cadence) {
+  let seq = [];
+  if (shape === "circle") {
+    seq = ["I","IV","viidim","iii","vi","ii","V","I"];
+  } else if (shape === "asc") {
+    seq = ["I","ii","iii","IV","V","vi","viidim","I"];
+  } else if (shape === "desc") {
+    seq = ["I","viidim","vi","V","IV","iii","ii","I"];
+  } else if (shape === "pedal_tonic") {
+    seq = ["I","I7","I","Isus4","I"];
+  } else if (shape === "pedal_dom") {
+    seq = ["V","V7","V","Vsus4","V"];
+  } else if (shape === "planing") {
+    seq = ["I","II","III","IV","V","VI","VII"];
+  } else if (shape === "vamp") {
+    seq = ["i7","IV7"];
+  } else if (shape === "chromatic") {
+    seq = ["I","bII","I","V","bVI","V"];
+  }
+  return expandSequence(seq, count, cadence);
+}
+
+function applyTemplateSettings(chords, templateId) {
+  if (templateId === "modal_sowhat") {
+    chords.forEach(ch => ch.forceQuartal = true);
+  }
+  if (templateId === "rock_pedal" || templateId === "metal_phry" || templateId === "metal_chrom") {
+    chords.forEach(ch => ch.forcePower = true);
+  }
+  if (templateId === "edm_ramp") {
+    chords.forEach((ch, idx) => {
+      ch.toneCountOverride = 3 + Math.min(4, Math.floor(idx / 2));
+    });
+  }
+}
+
+function generateProgression(settings, rng) {
+  const slots = buildChordSlots(settings, rng);
+  const chordCount = slots.length;
+  const key = chooseKey(settings, rng);
+  const scale = chooseScale(settings, rng);
+  state.actualKey = key;
+  state.actualScale = scale;
+
+  let romanSeq = [];
+  let templateId = settings.template;
+  const templates = getTemplatesForGenre(settings.genre);
+  if (!templateId || !templates.find(t => t.id === templateId)) templateId = templates[0].id;
+
+  if (settings.engine === "template") {
+    const template = templates.find(t => t.id === templateId) || templates[0];
+    romanSeq = expandSequence(template.seq, chordCount, settings.cadence);
+  } else if (settings.engine === "shape") {
+    romanSeq = shapeSequence(settings.shape, chordCount, settings.cadence);
+  } else {
+    const weighted = templates.map((t, idx) => ({ value: t, weight: idx === 0 ? 4 : 2 }));
+    const picked = chooseWeighted(rng, weighted);
+    romanSeq = expandSequence(picked.seq, chordCount, settings.cadence);
+    if (settings.shape !== "circle") {
+      const shapeSeq = shapeSequence(settings.shape, chordCount, settings.cadence);
+      romanSeq = romanSeq.map((r, i) => (i % 2 === 0 ? r : shapeSeq[i]));
+    }
+  }
+
+  const chords = romanSeq.map((roman, i) => {
+    const parsed = romanToDegree(roman) || { degree: 0, alt: 0, quality: "maj", roman };
+    return {
+      roman: parsed.roman,
+      degree: parsed.degree,
+      alt: parsed.alt,
+      quality: parsed.quality,
+      startBeat: slots[i].startBeat,
+      duration: slots[i].duration,
+      label: roman,
+      forceQuartal: false,
+      forcePower: false,
+      toneCountOverride: null
+    };
+  });
+
+  applyTemplateSettings(chords, templateId);
+
+  if (settings.tritone) {
+    chords.forEach((ch, idx) => {
+      if (ch.roman.toUpperCase().startsWith("V") && idx % 2 === 1) {
+        ch.alt -= 1;
+        ch.label = "bII7";
+        ch.quality = "dom7";
+      }
+    });
+  }
+
+  return chords;
+}
+
+// -------------------------------
+// Voicing engine
+// -------------------------------
+function qualityIntervals(quality) {
+  switch (quality) {
+    case "maj": return [0,4,7];
+    case "min": return [0,3,7];
+    case "dim": return [0,3,6];
+    case "aug": return [0,4,8];
+    case "dom7": return [0,4,7,10];
+    case "maj7": return [0,4,7,11];
+    case "min7": return [0,3,7,10];
+    case "halfdim": return [0,3,6,10];
+    case "sus4": return [0,5,7];
+    case "sus2": return [0,2,7];
+    case "power": return [0,7,12];
+    default: return [0,4,7];
+  }
+}
+
+function toneCountForSettings(settings, genre) {
+  if (settings.complexity === "triad") return 3;
+  if (settings.complexity === "7") return 4;
+  if (settings.complexity === "9") return 5;
+  if (settings.complexity === "11") return 6;
+  if (settings.complexity === "13") return 7;
+  if (settings.complexity === "genre") {
+    if (genre === "Jazz" || genre === "Bebop" || genre === "Modal Jazz") return 5;
+    if (genre === "Funk") return 4;
+    if (genre === "Classical" || genre === "Baroque") return 3;
+    if (genre === "EDM") return 4;
+    return 3;
+  }
+  return 4;
+}
+
+function buildChordIntervals(chord, scale, rootIndex, settings) {
+  const toneCount = chord.toneCountOverride || toneCountForSettings(settings, settings.genre);
+  if (settings.powerPrefer || chord.forcePower || settings.voicing === "power") {
+    return [0,7,12].slice(0, Math.max(2, Math.min(3, toneCount)));
+  }
+  if (settings.voicing === "quartal" || chord.forceQuartal) {
+    const quartal = [0,5,10,15,19,24,29];
+    return quartal.slice(0, toneCount);
+  }
+
+  let intervals = qualityIntervals(chord.quality);
+  if (toneCount <= intervals.length) return intervals.slice(0, toneCount);
+
+  const extensions = intervals.length >= 4 ? [8,10,12] : [6,8,10,12];
+  const exIntervals = extensions.map(off => intervalByDegreeOffset(scale, rootIndex, off));
+  intervals = intervals.concat(exIntervals);
+  return intervals.slice(0, toneCount);
+}
+
+function applyVoicingStyle(notes, settings) {
+  let out = [...notes];
+  if (settings.voicing === "open") {
+    for (let i = 1; i < out.length; i += 2) out[i] += 12;
+  } else if (settings.voicing === "drop2" && out.length >= 4) {
+    const idx = out.length - 2;
+    out[idx] -= 12;
+  } else if (settings.voicing === "upper") {
+    const base = out[0];
+    const upper = out.slice(2).map(n => n + 12);
+    out = [base, out[1], ...upper];
+  }
+  out.sort((a,b) => a - b);
+  return out;
+}
+
+function spreadNotes(notes, settings) {
+  let out = [...notes].sort((a,b) => a - b);
+  let spread = out[out.length - 1] - out[0];
+  const target = settings.spread;
+  while (spread < target) {
+    for (let i = out.length - 1; i >= 1 && spread < target; i--) {
+      out[i] += 12;
+      spread = out[out.length - 1] - out[0];
+    }
+    if (!settings.wide) break;
+  }
+  out.sort((a,b) => a - b);
+  return out;
+}
+
+function alignToPrev(notes, prevNotes, settings) {
+  if (!prevNotes || prevNotes.length === 0) return notes;
+  const out = [];
+  const limit = settings.smoothness === "smooth" ? 5 : (settings.smoothness === "balanced" ? 8 : 14);
+  for (let i = 0; i < notes.length; i++) {
+    const base = notes[i];
+    const prev = prevNotes[Math.min(i, prevNotes.length - 1)];
+    let best = base;
+    let bestDist = Infinity;
+    for (let k = -2; k <= 2; k++) {
+      const cand = base + 12 * k;
+      const dist = Math.abs(cand - prev);
+      const penalty = dist > limit ? dist * 1.5 : dist;
+      if (penalty < bestDist) {
+        bestDist = penalty;
+        best = cand;
+      }
+    }
+    out.push(best);
+  }
+  out.sort((a,b) => a - b);
+  return out;
+}
+
+function enforceRange(notes, settings) {
+  let out = [...notes];
+  while (out[0] < settings.bassMin) out = out.map(n => n + 12);
+  out.sort((a,b) => a - b);
+  if (settings.avoidMud) {
+    for (let i = 1; i < out.length; i++) {
+      if (out[i] - out[i - 1] <= 2 && out[i - 1] < settings.mudThreshold) {
+        out[i] += 12;
+      }
+    }
+  }
+  out.sort((a,b) => a - b);
+  return out;
+}
+
+function applyTopLineGuide(notes, chord, scale, rootIndex, prevNotes) {
+  if (!notes.length || !prevNotes || prevNotes.length === 0) return notes;
+  const guideOffsets = [2, 6];
+  const guidePcs = guideOffsets.map(off => intervalByDegreeOffset(scale, rootIndex, off));
+  const root = notes[0];
+  const candidates = guidePcs.map(pc => {
+    const base = root + pc;
+    const prevTop = prevNotes[prevNotes.length - 1];
+    let best = base;
+    let bestDist = Infinity;
+    for (let k = -2; k <= 2; k++) {
+      const cand = base + 12 * k;
+      const dist = Math.abs(cand - prevTop);
+      if (dist < bestDist) { bestDist = dist; best = cand; }
+    }
+    return best;
+  });
+  const top = candidates.sort((a,b) => Math.abs(a - prevNotes[prevNotes.length - 1]) - Math.abs(b - prevNotes[prevNotes.length - 1]))[0];
+  const out = [...notes];
+  out[out.length - 1] = top;
+  out.sort((a,b) => a - b);
+  return out;
+}
+
+function buildVoicedChords(chords, settings, rng) {
+  const keyPc = KEY_PC[state.actualKey] ?? 0;
+  const scale = SCALE_INTERVALS[state.actualScale] || SCALE_INTERVALS["Major"];
+  const preferFlats = ["Bb","Eb","Ab","Db","Gb"].includes(state.actualKey);
+  let prevNotes = null;
+  const driftMax = settings.wide ? 12 : 8;
+  let drift = rng ? Math.round((rng() - 0.5) * driftMax * 2) : 0;
+  const driftStep = settings.smoothness === "angular" ? 4 : (settings.smoothness === "smooth" ? 2 : 3);
+  return chords.map((ch) => {
+    const degreeIndex = ch.degree % scale.length;
+    const rootPc = (keyPc + scale[degreeIndex] + ch.alt + 120) % 12;
+    let root = settings.rootRegister;
+    while ((root % 12 + 12) % 12 !== rootPc) root++;
+
+    let intervals = buildChordIntervals(ch, scale, degreeIndex, settings);
+    let notes = intervals.map(i => root + i);
+    notes = applyVoicingStyle(notes, settings);
+    notes = spreadNotes(notes, settings);
+    notes = alignToPrev(notes, prevNotes, settings);
+    if (settings.topLine) notes = applyTopLineGuide(notes, ch, scale, degreeIndex, prevNotes);
+    if (rng) {
+      drift += Math.round((rng() - 0.5) * driftStep * 2);
+      drift = Math.max(-driftMax, Math.min(driftMax, drift));
+      notes = notes.map(n => n + drift);
+    }
+    notes = enforceRange(notes, settings);
+    prevNotes = notes;
+
+    const name = `${noteName(rootPc, preferFlats)}${qualitySuffix(ch.quality)}`;
+    return { ...ch, notes, name };
+  });
+}
+
+function qualitySuffix(quality) {
+  if (quality === "min") return "m";
+  if (quality === "maj") return "";
+  if (quality === "dom7") return "7";
+  if (quality === "maj7") return "maj7";
+  if (quality === "min7") return "m7";
+  if (quality === "dim") return "dim";
+  if (quality === "halfdim") return "m7b5";
+  if (quality === "sus4") return "sus4";
+  if (quality === "sus2") return "sus2";
+  if (quality === "power") return "5";
+  return "";
+}
+
+// -------------------------------
+// Note events (for audio + MIDI)
+// -------------------------------
+function buildNoteEvents(chords, settings) {
+  const events = [];
+  chords.forEach((ch, idx) => {
+    const voiceScale = 1 / Math.max(1, Math.sqrt(ch.notes.length));
+    if (settings.comping === "sustain") {
+      ch.notes.forEach(note => events.push({
+        note,
+        startBeat: ch.startBeat,
+        duration: ch.duration,
+        velocity: Math.min(0.8, 0.8 * voiceScale),
+        chordIndex: idx
+      }));
+    } else {
+      const step = 0.5;
+      const hits = Math.max(1, Math.floor(ch.duration / step));
+      for (let i = 0; i < hits; i++) {
+        const start = ch.startBeat + i * step;
+        const dur = Math.min(step * 0.7, ch.duration - i * step);
+        ch.notes.forEach(note => events.push({
+          note,
+          startBeat: start,
+          duration: dur,
+          velocity: Math.min(0.7, 0.7 * voiceScale),
+          chordIndex: idx
+        }));
+      }
+    }
+  });
+  return events;
+}
+
+// -------------------------------
+// MIDI export builder (SMF)
+// -------------------------------
+function writeVarLen(value) {
+  let buffer = value & 0x7F;
+  const bytes = [];
+  while ((value >>= 7)) {
+    buffer <<= 8;
+    buffer |= ((value & 0x7F) | 0x80);
+  }
+  while (true) {
+    bytes.push(buffer & 0xFF);
+    if (buffer & 0x80) buffer >>= 8; else break;
+  }
+  return bytes;
+}
+
+function writeUint32(value) {
+  return [(value >> 24) & 0xFF, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF];
+}
+
+function writeUint16(value) {
+  return [(value >> 8) & 0xFF, value & 0xFF];
+}
+
+function buildMidiFile(noteEvents, settings) {
+  const ppq = 480;
+  const [num, den] = settings.timeSig.split("/").map(Number);
+  const tempo = Math.round(60000000 / settings.tempo);
+
+  const events = [];
+  events.push({ tick: 0, order: 0, bytes: [0xFF, 0x51, 0x03, (tempo >> 16) & 0xFF, (tempo >> 8) & 0xFF, tempo & 0xFF] });
+  const dd = Math.log2(den);
+  events.push({ tick: 0, order: 1, bytes: [0xFF, 0x58, 0x04, num & 0xFF, dd & 0xFF, 0x18, 0x08] });
+
+  noteEvents.forEach(ev => {
+    const start = Math.round(ev.startBeat * ppq);
+    const end = Math.round((ev.startBeat + ev.duration) * ppq);
+    events.push({ tick: start, order: 2, bytes: [0x90, ev.note & 0x7F, Math.round(ev.velocity * 127)] });
+    events.push({ tick: end, order: 1, bytes: [0x80, ev.note & 0x7F, 0] });
+  });
+
+  events.sort((a, b) => a.tick - b.tick || a.order - b.order);
+
+  const track = [];
+  let lastTick = 0;
+  for (const ev of events) {
+    const delta = ev.tick - lastTick;
+    track.push(...writeVarLen(delta), ...ev.bytes);
+    lastTick = ev.tick;
+  }
+  track.push(0x00, 0xFF, 0x2F, 0x00);
+
+  const header = [
+    0x4D, 0x54, 0x68, 0x64,
+    0x00, 0x00, 0x00, 0x06,
+    0x00, 0x00,
+    0x00, 0x01,
+    ...writeUint16(ppq)
+  ];
+
+  const trackHeader = [0x4D, 0x54, 0x72, 0x6B, ...writeUint32(track.length)];
+  return new Uint8Array([...header, ...trackHeader, ...track]);
+}
+
+function updateMidiDownload() {
+  const data = buildMidiFile(state.noteEvents, state.settings);
+  const blob = new Blob([data], { type: "audio/midi" });
+  const url = URL.createObjectURL(blob);
+  ui.midiClip.href = url;
+  ui.download.onclick = () => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "progression.mid";
+    a.click();
+  };
+  ui.midiClip.ondragstart = (e) => {
+    e.dataTransfer.setData("DownloadURL", `audio/midi:progression.mid:${url}`);
+    e.dataTransfer.setData("text/uri-list", url);
+  };
+}
+
+// -------------------------------
+// Audio engine
+// -------------------------------
+const audio = {
+  ctx: null,
+  master: null,
+  compressor: null,
+  nodes: []
+};
+
+function ensureAudio() {
+  if (!audio.ctx) {
+    audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    audio.master = audio.ctx.createGain();
+    audio.master.gain.value = state.settings.volume;
+    audio.compressor = audio.ctx.createDynamicsCompressor();
+    audio.compressor.threshold.value = -18;
+    audio.compressor.knee.value = 12;
+    audio.compressor.ratio.value = 3;
+    audio.compressor.attack.value = 0.003;
+    audio.compressor.release.value = 0.12;
+    audio.master.connect(audio.compressor).connect(audio.ctx.destination);
+  }
+  if (audio.ctx.state === "suspended") audio.ctx.resume();
+}
+
+function midiToFreq(note) { return 440 * Math.pow(2, (note - 69) / 12); }
+
+function playNoteAudio(note, start, end, velocity) {
+  const osc = audio.ctx.createOscillator();
+  const gain = audio.ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.value = midiToFreq(note);
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(velocity, start + 0.01);
+  const releaseTime = Math.max(start + 0.02, end - 0.03);
+  gain.gain.linearRampToValueAtTime(0.0001, releaseTime);
+  gain.gain.setValueAtTime(0, end + 0.01);
+  osc.connect(gain).connect(audio.master);
+  osc.start(start);
+  osc.stop(end + 0.02);
+  audio.nodes.push(osc);
+}
+
+function stopAudio() {
+  audio.nodes.forEach(node => {
+    try { node.stop(); } catch (e) {}
+  });
+  audio.nodes = [];
+}
+
+function playChord(index) {
+  ensureAudio();
+  if (!audio.ctx) return;
+  if (!state.playing) {
+    stopAudio();
+    sendAllNotesOff();
+  }
+  const chord = state.chords[index];
+  if (!chord) return;
+  const spb = 60 / state.settings.tempo;
+  const now = audio.ctx.currentTime + 0.02;
+  const dur = Math.min(chord.duration * spb, 1.2);
+  const voiceScale = 1 / Math.max(1, Math.sqrt(chord.notes.length));
+  const vel = Math.min(0.7, 0.7 * voiceScale);
+  chord.notes.forEach(note => playNoteAudio(note, now, now + dur, vel));
+  if (state.midi.live) sendMidiChord(chord, Math.min(0.8, 0.8 * voiceScale), now);
+}
+
+function startPlayback() {
+  if (state.playing) return;
+  ensureAudio();
+  audio.master.gain.value = state.settings.volume;
+  const spb = 60 / state.settings.tempo;
+  state.playing = true;
+  state.playStartTime = audio.ctx.currentTime + 0.05;
+  state.playheadBeat = 0;
+  state.selectedChord = 0;
+
+  state.noteEvents.forEach(ev => {
+    const start = state.playStartTime + ev.startBeat * spb;
+    const end = start + ev.duration * spb;
+    playNoteAudio(ev.note, start, end, ev.velocity);
+  });
+
+  if (state.midi.live) scheduleMidiPlayback(state.playStartTime, spb);
+}
+
+function stopPlayback() {
+  state.playing = false;
+  state.playheadBeat = 0;
+  stopAudio();
+  sendAllNotesOff();
+}
+
+// -------------------------------
+// Web MIDI (output + transport skeleton)
+// Logic routing note: route browser MIDI output to Logic via IAC Driver or Logic Pro Virtual In.
+// -------------------------------
+function updateMidiLists() {
+  ui.midiOut.innerHTML = "";
+  ui.midiIn.innerHTML = "";
+  state.midi.outputs = state.midi.access ? Array.from(state.midi.access.outputs.values()) : [];
+  state.midi.inputs = state.midi.access ? Array.from(state.midi.access.inputs.values()) : [];
+  if (!state.midi.outputs.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No MIDI outputs";
+    ui.midiOut.appendChild(opt);
+  }
+  state.midi.outputs.forEach((out, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = out.name;
+    ui.midiOut.appendChild(opt);
+  });
+  if (!state.midi.inputs.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No MIDI inputs";
+    ui.midiIn.appendChild(opt);
+  }
+  state.midi.inputs.forEach((inp, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = inp.name;
+    ui.midiIn.appendChild(opt);
+  });
+  state.midi.output = state.midi.outputs[0] || null;
+  state.midi.input = state.midi.inputs[0] || null;
+  ui.midiOut.disabled = !state.midi.outputs.length;
+  ui.midiIn.disabled = !state.midi.inputs.length;
+}
+
+function enableMidi() {
+  if (!navigator.requestMIDIAccess) {
+    ui.midiStatus.textContent = "Web MIDI not supported";
+    return;
+  }
+  ui.midiStatus.textContent = "Requesting permission...";
+  navigator.requestMIDIAccess({ sysex: false }).then((access) => {
+    state.midi.access = access;
+    ui.midiStatus.textContent = "MIDI enabled";
+    updateMidiLists();
+    state.midi.access.onstatechange = updateMidiLists;
+  }, () => {
+    ui.midiStatus.textContent = "MIDI blocked";
+  });
+}
+
+function sendAllNotesOff() {
+  if (!state.midi.output) return;
+  for (let i = 0; i < 128; i++) {
+    state.midi.output.send([0x80, i, 0]);
+  }
+}
+
+function scheduleMidiPlayback(startTime, spb) {
+  if (!state.midi.output) return;
+  const base = performance.now() + (startTime - audio.ctx.currentTime) * 1000;
+  state.noteEvents.forEach(ev => {
+    const onTime = base + ev.startBeat * spb * 1000;
+    const offTime = base + (ev.startBeat + ev.duration) * spb * 1000;
+    state.midi.output.send([0x90, ev.note & 0x7F, Math.round(ev.velocity * 127)], onTime);
+    state.midi.output.send([0x80, ev.note & 0x7F, 0], offTime);
+  });
+}
+
+function sendMidiChord(chord, velocity, startTime) {
+  if (!state.midi.output) return;
+  const base = performance.now() + (startTime - audio.ctx.currentTime) * 1000;
+  chord.notes.forEach(note => {
+    state.midi.output.send([0x90, note & 0x7F, Math.round(velocity * 127)], base);
+    state.midi.output.send([0x80, note & 0x7F, 0], base + 400);
+  });
+}
+
+function attachTransportListener() {
+  if (!state.midi.input) return;
+  state.midi.input.onmidimessage = (msg) => {
+    if (!state.midi.externalTransport) return;
+    const [status] = msg.data;
+    if (status === 0xFA) {
+      startPlayback();
+    } else if (status === 0xFC) {
+      stopPlayback();
+    } else if (status === 0xF8) {
+      state.midi.clockCount = (state.midi.clockCount + 1) % 24;
+    }
+  };
+}
+
+// -------------------------------
+// Piano roll renderer + interaction
+// -------------------------------
+const ctx = ui.roll.getContext("2d");
+
+function resizeCanvas() {
+  const rect = ui.roll.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  ui.roll.width = rect.width * dpr;
+  ui.roll.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function autoFitView() {
+  const rect = ui.roll.getBoundingClientRect();
+  if (!rect.width || !rect.height || !state.totalBeats) return;
+  const minPpb = 20;
+  const maxPpb = 240;
+  state.view.ppb = Math.max(minPpb, Math.min(maxPpb, rect.width / state.totalBeats));
+  if (state.noteEvents.length) {
+    let minNote = Infinity;
+    let maxNote = -Infinity;
+    state.noteEvents.forEach(ev => {
+      if (ev.note < minNote) minNote = ev.note;
+      if (ev.note > maxNote) maxNote = ev.note;
+    });
+    const pad = 2;
+    minNote = Math.max(12, minNote - pad);
+    maxNote = Math.min(108, maxNote + pad);
+    const range = Math.max(6, maxNote - minNote + 1);
+    state.view.pps = rect.height / range;
+    state.view.offsetNote = minNote;
+    state.view.rangeMin = minNote;
+    state.view.rangeMax = maxNote;
+    const pitches = Array.from(new Set(state.noteEvents.map(ev => ev.note))).sort((a, b) => a - b);
+    state.view.pitchMap = pitches;
+    state.view.pitchIndex = Object.fromEntries(pitches.map((p, i) => [p, i]));
+  }
+  state.view.offsetBeat = 0;
+  updateScrollSliders();
+}
+
+function updateScrollSliders() {
+  const rect = ui.roll.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const visibleBeats = rect.width / state.view.ppb;
+  const maxBeatOffset = Math.max(0, state.totalBeats - visibleBeats);
+  ui.scrollTime.max = maxBeatOffset.toFixed(2);
+  ui.scrollTime.value = Math.min(maxBeatOffset, state.view.offsetBeat).toFixed(2);
+  ui.scrollTime.step = "0.25";
+  ui.scrollTimeWrap.classList.toggle("hidden", maxBeatOffset <= 0.01);
+}
+
+function ensureBeatVisible(beat) {
+  const rect = ui.roll.getBoundingClientRect();
+  if (!rect.width) return;
+  const visibleBeats = rect.width / state.view.ppb;
+  const maxBeatOffset = Math.max(0, state.totalBeats - visibleBeats);
+  const margin = Math.min(1.5, visibleBeats * 0.15);
+  if (beat < state.view.offsetBeat + margin) {
+    state.view.offsetBeat = Math.max(0, beat - margin);
+  } else if (beat > state.view.offsetBeat + visibleBeats - margin) {
+    state.view.offsetBeat = Math.min(maxBeatOffset, beat - visibleBeats + margin);
+  }
+  updateScrollSliders();
+}
+
+function drawGrid(width, height) {
+  const beats = state.totalBeats;
+  const ppb = state.view.ppb;
+  const pps = state.view.pps;
+  const startBeat = state.view.offsetBeat;
+  const endBeat = startBeat + width / ppb;
+  const barBeats = beatsPerBar(state.settings.timeSig);
+
+  ctx.strokeStyle = accentRgba(0.12);
+  ctx.lineWidth = 1;
+  for (let b = Math.floor(startBeat); b <= endBeat; b++) {
+    const x = (b - startBeat) * ppb;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = accentRgba(0.3);
+  for (let bar = Math.floor(startBeat / barBeats); bar <= endBeat / barBeats; bar++) {
+    const x = (bar * barBeats - startBeat) * ppb;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+
+  const pitchMap = state.view.pitchMap;
+  if (pitchMap && pitchMap.length) {
+    const rowH = height / pitchMap.length;
+    ctx.strokeStyle = accentRgba(0.08);
+    for (let i = 0; i <= pitchMap.length; i++) {
+      const y = i * rowH;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  } else {
+    ctx.strokeStyle = accentRgba(0.08);
+    const noteMin = state.view.offsetNote;
+    const noteMax = noteMin + height / pps;
+    for (let n = Math.floor(noteMin); n <= noteMax; n++) {
+      const y = (noteMax - n) * pps;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawNotes(width, height) {
+  const ppb = state.view.ppb;
+  const startBeat = state.view.offsetBeat;
+  const pitchMap = state.view.pitchMap;
+  const pitchIndex = state.view.pitchIndex;
+  const useMap = pitchMap && pitchMap.length;
+  const rowH = useMap ? height / pitchMap.length : state.view.pps;
+  const noteMin = useMap ? null : state.view.offsetNote;
+  const noteMax = useMap ? null : noteMin + height / rowH;
+
+  state.noteEvents.forEach(ev => {
+    if (ev.startBeat + ev.duration < startBeat || ev.startBeat > startBeat + width / ppb) return;
+    if (!useMap && (ev.note < noteMin - 2 || ev.note > noteMax + 2)) return;
+    if (useMap && pitchIndex[ev.note] === undefined) return;
+    const x = (ev.startBeat - startBeat) * ppb;
+    const idx = useMap ? pitchIndex[ev.note] : Math.floor(noteMax - ev.note);
+    const rowTop = useMap ? (pitchMap.length - 1 - idx) * rowH : (noteMax - ev.note - 1) * rowH;
+    const w = ev.duration * ppb;
+    const h = Math.max(1, rowH * 0.9);
+    const isCurrent = state.playing && ev.chordIndex === state.selectedChord;
+    const isSelected = ev.chordIndex === state.selectedChord;
+    ctx.fillStyle = isCurrent ? "rgba(255,255,255,0.45)" : (isSelected ? accentRgba(0.55) : accentRgba(0.28));
+    const y = rowTop + (rowH - h) / 2;
+    ctx.fillRect(x, y, Math.max(1, w), h);
+  });
+}
+
+function drawPlayhead(width, height) {
+  if (!state.playing) return;
+  const x = (state.playheadBeat - state.view.offsetBeat) * state.view.ppb;
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.beginPath();
+  ctx.moveTo(x, 0);
+  ctx.lineTo(x, height);
+  ctx.stroke();
+}
+
+function draw() {
+  const rect = ui.roll.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillRect(0, 0, width, height);
+
+  drawGrid(width, height);
+  drawNotes(width, height);
+  drawPlayhead(width, height);
+}
+
+function updatePlayhead() {
+  if (!state.playing || !audio.ctx) return;
+  const spb = 60 / state.settings.tempo;
+  const now = audio.ctx.currentTime;
+  state.playheadBeat = Math.max(0, (now - state.playStartTime) / spb);
+  if (state.playheadBeat >= state.totalBeats) {
+    stopPlayback();
+  } else {
+    const idx = state.chords.findIndex(ch => state.playheadBeat >= ch.startBeat && state.playheadBeat < ch.startBeat + ch.duration);
+    state.selectedChord = Math.max(0, idx);
+    ensureBeatVisible(state.playheadBeat);
+  }
+}
+
+function chordAtBeat(beat) {
+  return state.chords.findIndex(ch => beat >= ch.startBeat && beat < ch.startBeat + ch.duration);
+}
+
+function handleCanvasClick(e) {
+  const rect = ui.roll.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const beat = state.view.offsetBeat + x / state.view.ppb;
+  const idx = chordAtBeat(beat);
+  if (idx >= 0) {
+    state.selectedChord = idx;
+    playChord(idx);
+  }
+}
+
+// Wheel zoom disabled per UX request.
+
+ui.roll.addEventListener("mousedown", (e) => {
+  state.drag.active = true;
+  state.drag.startX = e.clientX;
+  state.drag.startY = e.clientY;
+  state.drag.startOffsetBeat = state.view.offsetBeat;
+  state.drag.startOffsetNote = state.view.offsetNote;
+  state.drag.moved = false;
+});
+
+window.addEventListener("mouseup", (e) => {
+  if (state.drag.active && !state.drag.moved) handleCanvasClick(e);
+  state.drag.active = false;
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (!state.drag.active) return;
+  const dx = e.clientX - state.drag.startX;
+  const dy = e.clientY - state.drag.startY;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) state.drag.moved = true;
+  state.view.offsetBeat = Math.max(0, state.drag.startOffsetBeat - dx / state.view.ppb);
+  if (!state.view.pitchMap.length) {
+    const rect = ui.roll.getBoundingClientRect();
+    const visibleNotes = rect.height / state.view.pps;
+    const maxNoteOffset = Math.max(0, (state.view.rangeMax - state.view.rangeMin + 1) - visibleNotes);
+    const minNoteOffset = state.view.rangeMin;
+    const maxNote = Math.max(minNoteOffset, minNoteOffset + Math.floor(maxNoteOffset));
+    state.view.offsetNote = Math.max(minNoteOffset, Math.min(maxNote, state.drag.startOffsetNote + dy / state.view.pps));
+  }
+  updateScrollSliders();
+});
+
+// -------------------------------
+// Keyboard handlers
+// -------------------------------
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Space") {
+    e.preventDefault();
+    if (state.playing) stopPlayback(); else startPlayback();
+  } else if (e.code === "ArrowRight") {
+    e.preventDefault();
+    if (!state.chords.length) return;
+    state.selectedChord = state.selectedChord >= state.chords.length - 1 ? 0 : state.selectedChord + 1;
+    const ch = state.chords[state.selectedChord];
+    if (ch) ensureBeatVisible(ch.startBeat + ch.duration * 0.2);
+    playChord(state.selectedChord);
+  } else if (e.code === "ArrowLeft") {
+    e.preventDefault();
+    if (!state.chords.length) return;
+    state.selectedChord = state.selectedChord <= 0 ? state.chords.length - 1 : state.selectedChord - 1;
+    const ch = state.chords[state.selectedChord];
+    if (ch) ensureBeatVisible(ch.startBeat + ch.duration * 0.2);
+    playChord(state.selectedChord);
+  }
+});
+
+// -------------------------------
+// Theme switching
+// -------------------------------
+const THEMES = {
+  green: { accent: "#7cff6b", bg: "#041404", fg: "#b6ffb0", muted: "#7fbb7a" },
+  amber: { accent: "#ffb74d", bg: "#120b02", fg: "#ffd8a3", muted: "#c28a45" },
+  yellow: { accent: "#ffe066", bg: "#121006", fg: "#fff2b2", muted: "#c8b95a" },
+  white: { accent: "#e6f7ff", bg: "#0a0f12", fg: "#ffffff", muted: "#99a9b5" }
+};
+
+function hexToRgb(hex) {
+  const clean = hex.replace("#", "").trim();
+  if (clean.length === 3) {
+    const r = parseInt(clean[0] + clean[0], 16);
+    const g = parseInt(clean[1] + clean[1], 16);
+    const b = parseInt(clean[2] + clean[2], 16);
+    return { r, g, b };
+  }
+  if (clean.length === 6) {
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return { r, g, b };
+  }
+  return { r: 124, g: 255, b: 107 };
+}
+
+function accentRgba(alpha) {
+  const { r, g, b } = state.themeAccent;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function applyTheme(settings) {
+  let theme;
+  if (settings.theme === "custom") {
+    const bgRgb = hexToRgb(settings.customBg);
+    const lum = (bgRgb.r * 0.299 + bgRgb.g * 0.587 + bgRgb.b * 0.114) / 255;
+    const fg = lum > 0.6 ? "#111111" : "#f7f7f7";
+    const muted = lum > 0.6 ? "#333333" : "#c4c4c4";
+    theme = { accent: settings.customAccent, bg: settings.customBg, fg, muted };
+  } else {
+    theme = THEMES[settings.theme];
+  }
+  if (!theme) return;
+  const rgb = hexToRgb(theme.accent);
+  state.themeAccent = rgb;
+  document.documentElement.style.setProperty("--accent", theme.accent);
+  document.documentElement.style.setProperty("--accent-2", theme.accent);
+  document.documentElement.style.setProperty("--accent-rgb", `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+  document.documentElement.style.setProperty("--bg", theme.bg);
+  document.documentElement.style.setProperty("--fg", theme.fg);
+  document.documentElement.style.setProperty("--muted", theme.muted);
+  if (settings.theme === "custom") {
+    document.documentElement.style.setProperty("--panel", "rgba(0, 0, 0, 0.6)");
+  } else {
+    document.documentElement.style.setProperty("--panel", "rgba(3, 16, 6, 0.85)");
+  }
+  document.documentElement.style.setProperty("--glow", `0 0 12px ${theme.accent}55`);
+}
+
+// -------------------------------
+// Main generation pipeline
+// -------------------------------
+function generate(options = {}) {
+  const { bumpSeed = false } = options;
+  const prevSeed = state.settings.seed;
+  state.settings = readSettingsFromUI();
+  if (state.settings.seed !== prevSeed) state.generateCount = 0;
+  applyTheme(state.settings);
+  updateUrl(state.settings);
+
+  if (bumpSeed) state.generateCount += 1;
+  const genSeed = `${state.settings.seed}|${state.generateCount}`;
+  const rng = createRng(genSeed);
+  const chords = generateProgression(state.settings, rng);
+  const voiced = buildVoicedChords(chords, state.settings, rng);
+  state.chords = voiced;
+  state.noteEvents = buildNoteEvents(voiced, state.settings);
+  state.totalBeats = beatsPerBar(state.settings.timeSig) * state.settings.bars;
+  state.selectedChord = 0;
+  autoFitView();
+
+  ui.actualKey.textContent = `Actual: ${state.actualKey} ${state.actualScale}`;
+  ui.chordInfo.textContent = `Chord 1/${state.chords.length}`;
+  ui.status.textContent = "Generated";
+  updateMidiDownload();
+}
+
+function refreshChordInfo() {
+  if (!state.chords.length) return;
+  const ch = state.chords[state.selectedChord];
+  ui.chordInfo.textContent = `Chord ${state.selectedChord + 1}/${state.chords.length} | ${ch.name} (${ch.label})`;
+}
+
+// -------------------------------
+// UI wiring
+// -------------------------------
+function populateTemplates(selected) {
+  const templates = getTemplatesForGenre(controls.genre.value);
+  const want = selected || controls.template.value;
+  controls.template.innerHTML = "";
+  templates.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.id;
+    opt.textContent = t.name;
+    controls.template.appendChild(opt);
+  });
+  if (templates.find(t => t.id === want)) controls.template.value = want;
+  else controls.template.value = templates[0].id;
+}
+
+function randChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randInt(min, max) { return Math.floor(min + Math.random() * (max - min + 1)); }
+
+function randomizeAllSettings() {
+  controls.genre.value = randChoice(Array.from(controls.genre.options).map(o => o.value));
+  populateTemplates();
+
+  controls.engine.value = randChoice(Array.from(controls.engine.options).map(o => o.value));
+  if (controls.engine.value === "template") {
+    controls.template.value = randChoice(Array.from(controls.template.options).map(o => o.value));
+  }
+
+  controls.bars.value = randInt(1, 64);
+  controls.timeSig.value = randChoice(["4/4","3/4","6/8"]);
+  controls.tempo.value = randInt(60, 180);
+  controls.density.value = randChoice(["1","2","4","varied"]);
+  controls.comping.value = randChoice(["sustain","comping"]);
+
+  controls.key.value = randChoice(Array.from(controls.key.options).map(o => o.value));
+  controls.scale.value = randChoice(Array.from(controls.scale.options).map(o => o.value));
+  controls.mood.value = randChoice(Array.from(controls.mood.options).map(o => o.value));
+  controls.seed.value = `CM-${randInt(1000, 9999)}`;
+
+  controls.shape.value = randChoice(Array.from(controls.shape.options).map(o => o.value));
+  controls.cadence.value = randChoice(Array.from(controls.cadence.options).map(o => o.value));
+  controls.tritone.checked = Math.random() < 0.2;
+  controls.powerPrefer.checked = Math.random() < 0.3;
+
+  controls.complexity.value = randChoice(Array.from(controls.complexity.options).map(o => o.value));
+  controls.voicing.value = randChoice(Array.from(controls.voicing.options).map(o => o.value));
+  controls.rootRegister.value = randInt(36, 60);
+  controls.spread.value = randInt(0, 24);
+  controls.wide.checked = Math.random() < 0.3;
+  controls.smoothness.value = randChoice(Array.from(controls.smoothness.options).map(o => o.value));
+  controls.avoidMud.checked = Math.random() < 0.8;
+  controls.mudThreshold.value = randInt(50, 60);
+  controls.bassMin.value = randInt(32, 40);
+  controls.topLine.checked = Math.random() < 0.2;
+  controls.volume.value = (Math.random() * 0.4 + 0.4).toFixed(2);
+
+  controls.theme.value = randChoice(Array.from(controls.theme.options).map(o => o.value));
+  generate({ bumpSeed: true });
+}
+
+ui.generate.addEventListener("click", () => generate({ bumpSeed: true }));
+ui.randomAll.addEventListener("click", () => randomizeAllSettings());
+ui.play.addEventListener("click", () => startPlayback());
+ui.stop.addEventListener("click", () => stopPlayback());
+ui.prev.addEventListener("click", () => {
+  if (!state.chords.length) return;
+  state.selectedChord = state.selectedChord <= 0 ? state.chords.length - 1 : state.selectedChord - 1;
+  const ch = state.chords[state.selectedChord];
+  if (ch) ensureBeatVisible(ch.startBeat + ch.duration * 0.2);
+  playChord(state.selectedChord);
+  refreshChordInfo();
+});
+ui.next.addEventListener("click", () => {
+  if (!state.chords.length) return;
+  state.selectedChord = state.selectedChord >= state.chords.length - 1 ? 0 : state.selectedChord + 1;
+  const ch = state.chords[state.selectedChord];
+  if (ch) ensureBeatVisible(ch.startBeat + ch.duration * 0.2);
+  playChord(state.selectedChord);
+  refreshChordInfo();
+});
+
+ui.seedRand.addEventListener("click", () => {
+  controls.seed.value = `CM-${Math.floor(1000 + Math.random() * 9000)}`;
+  generate();
+});
+
+ui.copyUrl.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(location.href);
+    ui.status.textContent = "URL copied";
+  } catch (e) {
+    ui.status.textContent = "Copy failed";
+  }
+});
+
+ui.midiEnable.addEventListener("click", enableMidi);
+ui.midiOut.addEventListener("change", () => {
+  if (!ui.midiOut.value) { state.midi.output = null; return; }
+  const idx = Number(ui.midiOut.value);
+  state.midi.output = state.midi.outputs[idx] || null;
+});
+ui.midiIn.addEventListener("change", () => {
+  if (!ui.midiIn.value) { state.midi.input = null; return; }
+  const idx = Number(ui.midiIn.value);
+  state.midi.input = state.midi.inputs[idx] || null;
+  attachTransportListener();
+});
+ui.liveMidi.addEventListener("change", () => { state.midi.live = ui.liveMidi.checked; });
+ui.extTransport.addEventListener("change", () => { state.midi.externalTransport = ui.extTransport.checked; attachTransportListener(); });
+
+ui.scrollTime.addEventListener("input", () => {
+  state.view.offsetBeat = Number(ui.scrollTime.value);
+});
+
+Object.values(controls).forEach(el => {
+  if (el === controls.template) return;
+  if (el === controls.genre) return;
+  el.addEventListener("change", () => {
+    generate();
+  });
+});
+
+controls.genre.addEventListener("change", () => {
+  populateTemplates();
+  generate();
+});
+controls.template.addEventListener("change", () => generate());
+
+controls.volume.addEventListener("input", () => {
+  state.settings.volume = Number(controls.volume.value);
+  if (audio.master) audio.master.gain.value = state.settings.volume;
+});
+
+// -------------------------------
+// Initialization
+// -------------------------------
+function init() {
+  const fromUrl = parseSettingsFromUrl();
+  state.settings = { ...defaultSettings, ...fromUrl };
+  applySettingsToUI(state.settings);
+  populateTemplates(state.settings.template);
+  applyTheme(state.settings);
+  ui.midiOut.disabled = true;
+  ui.midiIn.disabled = true;
+  resizeCanvas();
+  generate();
+  refreshChordInfo();
+  requestAnimationFrame(loop);
+}
+
+function loop() {
+  updatePlayhead();
+  refreshChordInfo();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("resize", () => {
+  resizeCanvas();
+  updateScrollSliders();
+});
+init();
+</script>
+</body>
+</html>
