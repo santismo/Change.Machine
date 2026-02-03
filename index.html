@@ -158,6 +158,87 @@
       text-transform: uppercase;
     }
 
+    .panel .button-row + h2 {
+      margin-top: 10px;
+    }
+
+    .help-button {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 10;
+      border: 1px solid rgba(110, 255, 198, 0.5);
+      background: rgba(6, 18, 12, 0.9);
+      color: var(--text);
+      padding: 10px 14px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      box-shadow: 0 0 14px rgba(67, 255, 180, 0.2);
+    }
+
+    .help-button:hover {
+      box-shadow: 0 0 18px rgba(67, 255, 180, 0.35);
+    }
+
+    .help-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 6, 5, 0.85);
+      z-index: 20;
+      padding: 24px;
+    }
+
+    .help-modal.active {
+      display: flex;
+    }
+
+    .help-terminal {
+      width: min(720px, 100%);
+      background: #020705;
+      border: 1px solid rgba(110, 255, 198, 0.4);
+      box-shadow: 0 0 24px rgba(67, 255, 180, 0.3);
+      padding: 20px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .help-terminal h3 {
+      margin: 0 0 10px;
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .help-terminal pre {
+      margin: 0;
+      white-space: pre-wrap;
+      color: var(--text);
+    }
+
+    .help-cursor {
+      display: inline-block;
+      width: 8px;
+      margin-left: 2px;
+      background: var(--text);
+      animation: blink 1s steps(2, start) infinite;
+    }
+
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    .help-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 14px;
+    }
+
     .controls {
       display: grid;
       gap: 14px;
@@ -314,6 +395,26 @@
       resize: vertical;
     }
 
+    .progression-highlight {
+      display: block;
+      border: 1px solid rgba(110, 255, 198, 0.3);
+      background: #040b08;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    .progression-highlight mark {
+      background: rgba(255, 184, 74, 0.25);
+      color: var(--text);
+      padding: 0 2px;
+      border-radius: 3px;
+      box-shadow: 0 0 8px rgba(255, 184, 74, 0.3);
+    }
+
     .oscilloscope {
       width: 100%;
       height: 120px;
@@ -387,18 +488,22 @@
               </select>
             </label>
             <label>
-              Seed
-              <input id="seed" type="text" placeholder="auto" />
+              $eed
+              <input id="seed" type="text" placeholder="blank $eed" />
             </label>
             <div class="button-row">
-              <button id="generate">¢hange</button>
-              <button id="play">Play</button>
-              <button id="download" class="secondary">Download .mid</button>
+              <button id="importSeed" class="secondary">Import $eed</button>
+              <button id="copySeed" class="secondary">Copy $eed</button>
             </div>
           </div>
         </section>
 
         <section class="panel">
+          <div class="button-row">
+            <button id="generate">¢hange</button>
+            <button id="play">Play</button>
+            <button id="download" class="secondary">Download .mid</button>
+          </div>
           <h2>Progression</h2>
           <div id="timelineView" class="timeline-view">
             <div id="ruler" class="ruler"></div>
@@ -410,11 +515,23 @@
           <div class="text-export">
             <label for="progressionText">Chord text</label>
             <textarea id="progressionText" readonly></textarea>
+            <div id="progressionHighlight" class="progression-highlight"></div>
             <button id="copyProgression" class="secondary">Copy progression</button>
           </div>
           <canvas id="oscilloscope" class="oscilloscope"></canvas>
           <div class="footer" id="footer"></div>
         </section>
+      </div>
+    </div>
+  </div>
+
+  <button id="helpButton" class="help-button">?</button>
+  <div id="helpModal" class="help-modal" aria-hidden="true">
+    <div class="help-terminal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <h3 id="helpTitle">¢hange.machine // operator manual</h3>
+      <pre><span id="helpText"></span><span class="help-cursor" aria-hidden="true"></span></pre>
+      <div class="help-actions">
+        <button id="helpClose" class="secondary">Close</button>
       </div>
     </div>
   </div>
@@ -482,6 +599,11 @@
     };
 
     const simplePatterns = [[4], [2, 2], [3, 1], [1, 3]];
+    const densePatterns = [
+      [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+      [0.5, 0.5, 1, 0.5, 0.5, 1],
+      [0.5, 0.5, 0.5, 1, 0.5, 0.5]
+    ];
 
     function pickDensityIndex(densityPercent, rng) {
       const clamped = Math.max(0, Math.min(100, densityPercent));
@@ -570,7 +692,9 @@
         const tripletPatterns = patternsTripletByDensity[densityIndex];
         let pattern = [4];
         if (subdivisionDensity > 0) {
-          if (rng() < subdivisionDensity) {
+          if (densityPercent >= 95 && rng() < 0.7) {
+            pattern = pick(densePatterns, rng);
+          } else if (rng() < subdivisionDensity) {
             pattern = pick(evenPatterns, rng);
             if (subdivision === "mixed" && rng() < 0.35) {
               pattern = pick(tripletPatterns, rng);
@@ -678,28 +802,46 @@
       return new Uint8Array([...header, ...trackHeader, ...track]);
     }
 
-    function formatProgressionText(chords) {
-      const bars = [];
-      let current = [];
+    function buildProgressionTokens(chords) {
+      const tokens = [];
       let beatInBar = 0;
       const eps = 1e-6;
 
-      chords.forEach(chord => {
-        current.push(chord.name);
+      chords.forEach((chord, index) => {
+        tokens.push({ type: "chord", text: chord.name, index });
         beatInBar += chord.duration;
         if (beatInBar >= 4 - eps) {
-          bars.push(current.join(" "));
-          current = [];
+          tokens.push({ type: "bar", text: " | " });
           beatInBar -= 4;
           if (beatInBar < eps) beatInBar = 0;
+        } else {
+          tokens.push({ type: "space", text: " " });
         }
       });
 
-      if (current.length) {
-        bars.push(current.join(" "));
+      if (tokens.length && tokens[tokens.length - 1].type !== "bar") {
+        tokens.push({ type: "bar", text: " | " });
       }
 
-      return bars.join(" | ");
+      return tokens;
+    }
+
+    function formatProgressionTextFromTokens(tokens) {
+      return tokens.map(token => token.text).join("").replace(/\s\|\s$/, "");
+    }
+
+    function renderProgressionHighlight(activeIndex) {
+      if (!progressionHighlight) return;
+      const html = chordTextTokens.map(token => {
+        if (token.type === "chord") {
+          if (token.index === activeIndex) {
+            return `<mark>${token.text}</mark>`;
+          }
+          return token.text;
+        }
+        return token.text;
+      }).join("");
+      progressionHighlight.innerHTML = html.replace(/\s\|\s$/, "");
     }
 
     function sanitizeFileName(name) {
@@ -707,7 +849,7 @@
         .toString()
         .trim()
         .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9_¢-]/g, "");
+        .replace(/[^a-zA-Z0-9_$-]/g, "");
       return cleaned.length ? cleaned : "change.machine";
     }
 
@@ -719,6 +861,12 @@
     const subdivisionDensityInput = document.getElementById("subdivisionDensity");
     const subdivisionInput = document.getElementById("subdivision");
     const seedInput = document.getElementById("seed");
+    const importSeed = document.getElementById("importSeed");
+    const copySeed = document.getElementById("copySeed");
+    const helpButton = document.getElementById("helpButton");
+    const helpModal = document.getElementById("helpModal");
+    const helpClose = document.getElementById("helpClose");
+    const helpText = document.getElementById("helpText");
     const barsReadout = document.getElementById("barsReadout");
     const densityReadout = document.getElementById("densityReadout");
     const subdivisionDensityReadout = document.getElementById("subdivisionDensityReadout");
@@ -727,6 +875,7 @@
     const track = document.getElementById("track");
     const timelineScroll = document.getElementById("timelineScroll");
     const progressionText = document.getElementById("progressionText");
+    const progressionHighlight = document.getElementById("progressionHighlight");
     const copyProgression = document.getElementById("copyProgression");
     const playButton = document.getElementById("play");
     const oscilloscope = document.getElementById("oscilloscope");
@@ -748,10 +897,12 @@
     let currentMidi = null;
     let midiBlobUrl = null;
     let currentChords = [];
+    let chordTextTokens = [];
     let chordStarts = [];
     let chordClips = [];
     let currentChordIndex = -1;
     let currentFileName = "change.machine.mid";
+    let currentSeed = "";
     let isPlaying = false;
     let playTimers = [];
     let audioContext = null;
@@ -883,13 +1034,13 @@
         const clipRight = clipLeft + clip.offsetWidth;
         const viewLeft = timelineView.scrollLeft;
         const viewRight = viewLeft + timelineView.clientWidth;
-        if (clipRight > viewRight) {
-          timelineView.scrollLeft = clipRight - timelineView.clientWidth + 16;
-        } else if (clipLeft < viewLeft) {
-          timelineView.scrollLeft = Math.max(clipLeft - 16, 0);
+        const targetLeft = Math.max(clipLeft - 16, 0);
+        if (clipRight > viewRight || clipLeft < viewLeft) {
+          timelineView.scrollLeft = targetLeft;
         }
         timelineScroll.value = String(timelineView.scrollLeft);
       }
+      renderProgressionHighlight(currentChordIndex);
     }
 
     function stopPlayback() {
@@ -963,8 +1114,8 @@
       const subdivision = subdivisionInput.value;
       const subdivisionDensity = Math.max(0, Math.min(100, parseInt(subdivisionDensityInput.value, 10) || 0)) / 100;
       const bpm = Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
-      const seedRaw = seedInput.value.trim() || `seed-${Date.now()}`;
-      const seedLabel = seedRaw.startsWith("¢") ? seedRaw : `¢${seedRaw}`;
+      const seedRaw = seedInput.value.trim() || `$eed-${Date.now()}`;
+      const seedLabel = seedRaw;
       const keyChoice = keySelect.value;
       let key = keyChoice;
       let keyLabel = keyChoice;
@@ -977,6 +1128,7 @@
       const chords = generateProgression({ bars, key, densityPercent, seed: seedLabel, subdivision, subdivisionDensity });
       currentChords = chords;
       currentMidi = buildMidi(chords, bpm);
+      currentSeed = seedLabel;
       currentFileName = `${sanitizeFileName(seedLabel)}.mid`;
       if (midiBlobUrl) {
         URL.revokeObjectURL(midiBlobUrl);
@@ -1024,9 +1176,12 @@
         beatCursor += chord.duration;
       });
 
-      progressionText.value = formatProgressionText(chords);
+      chordTextTokens = buildProgressionTokens(chords);
+      progressionText.value = formatProgressionTextFromTokens(chordTextTokens);
+      renderProgressionHighlight(currentChordIndex);
       const subdivisionLabel = subdivision === "mixed" ? "even+triplet" : "even";
-      footer.textContent = `Key ${keyLabel} | ${bars} bars | ${bpm} BPM | density ${densityPercent}% | ${subdivisionLabel} | subdiv ${Math.round(subdivisionDensity * 100)}% | seed ${seedLabel}`;
+      const seedDisplay = seedLabel.startsWith("$eed") ? seedLabel : `$eed ${seedLabel}`;
+      footer.textContent = `Key ${keyLabel} | ${bars} bars | ${bpm} BPM | density ${densityPercent}% | ${subdivisionLabel} | subdiv ${Math.round(subdivisionDensity * 100)}% | ${seedDisplay}`;
     }
 
     document.getElementById("generate").addEventListener("click", () => {
@@ -1061,6 +1216,103 @@
       }
     });
 
+    importSeed.addEventListener("click", () => {
+      const trimmed = seedInput.value.trim();
+      if (!trimmed) return;
+      render();
+    });
+
+    seedInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        if (seedInput.value.trim()) {
+          render();
+        }
+      }
+    });
+
+    copySeed.addEventListener("click", async () => {
+      const seedValue = (seedInput.value.trim() || currentSeed || "").trim();
+      if (!seedValue) return;
+      try {
+        await navigator.clipboard.writeText(seedValue);
+        copySeed.textContent = "Copied";
+        setTimeout(() => {
+          copySeed.textContent = "Copy $eed";
+        }, 1200);
+      } catch (err) {
+        seedInput.focus();
+        seedInput.select();
+        document.execCommand("copy");
+      }
+    });
+
+    const helpContent = [
+      "SYSTEM: Generates chord progressions and exports MIDI blocks.",
+      "",
+      "CONTROLS",
+      "- Key center: Choose a root or random.",
+      "- Tempo: BPM for playback and MIDI.",
+      "- Bars: Length of the progression.",
+      "- Harmonic density (%): How busy the harmony feels.",
+      "- Subdivision density (%): How often bars subdivide.",
+      "- Subdivision mode: Even only or even + triplet feel.",
+      "- $eed: Paste any text to make a repeatable progression.",
+      "",
+      "BUTTONS",
+      "- ¢hange: Generate a new progression.",
+      "- Play: Listen with a sine synth (loops).",
+      "- Download .mid: Save the MIDI file.",
+      "- Import $eed: Loads the current $eed value.",
+      "- Copy $eed / Copy progression: Clipboard helpers.",
+      "",
+      "HOTKEYS",
+      "- Space: Play/Stop.",
+      "- Left/Right: Step through chords.",
+      "- C: ¢hange (new progression).",
+      "- Enter (in $eed): Import $eed."
+    ].join("\n");
+
+    let helpTypeTimer = null;
+
+    function typeHelpText() {
+      if (!helpText) return;
+      helpText.textContent = "";
+      if (helpTypeTimer) clearInterval(helpTypeTimer);
+      let index = 0;
+      helpTypeTimer = setInterval(() => {
+        helpText.textContent = helpContent.slice(0, index);
+        index += 1;
+        if (index > helpContent.length) {
+          clearInterval(helpTypeTimer);
+          helpTypeTimer = null;
+        }
+      }, 6);
+    }
+
+    function openHelp() {
+      helpModal.classList.add("active");
+      helpModal.setAttribute("aria-hidden", "false");
+      typeHelpText();
+    }
+
+    function closeHelp() {
+      helpModal.classList.remove("active");
+      helpModal.setAttribute("aria-hidden", "true");
+      if (helpTypeTimer) {
+        clearInterval(helpTypeTimer);
+        helpTypeTimer = null;
+      }
+    }
+
+    helpButton.addEventListener("click", openHelp);
+    helpClose.addEventListener("click", closeHelp);
+    helpModal.addEventListener("click", (event) => {
+      if (event.target === helpModal) {
+        closeHelp();
+      }
+    });
+
 
     playButton.addEventListener("click", () => {
       if (isPlaying) {
@@ -1075,7 +1327,10 @@
       const tag = (event.target && event.target.tagName) ? event.target.tagName.toLowerCase() : "";
       if (tag === "input" || tag === "textarea" || tag === "select") return;
       if (!currentChords.length) return;
-      if (event.key === "c" || event.key === "C") {
+      if (event.key === "Escape" && helpModal.classList.contains("active")) {
+        event.preventDefault();
+        closeHelp();
+      } else if (event.key === "c" || event.key === "C") {
         event.preventDefault();
         render();
       } else if (event.key === " ") {
