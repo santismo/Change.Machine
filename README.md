@@ -1,4 +1,7 @@
 # ¢hange.machine // operator manual
+
+https://santismo.github.io/Change.Machine/
+
 SYSTEM: Generates chord progressions and exports MIDI blocks.
 
 CONTROLS
