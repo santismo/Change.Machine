@@ -9,16 +9,26 @@
 
     :root {
       --bg: #0a0f0c;
-      --bg-2: #0d1a14;
-      --grid: rgba(82, 255, 171, 0.12);
+      --bg-2: #0f2a1e;
+      --bg-3: #050806;
+      --grid-rgb: 82, 255, 171;
+      --grid: rgba(var(--grid-rgb), 0.12);
       --text: #c9ffe7;
       --muted: #7fe6c1;
+      --muted-rgb: 127, 230, 193;
       --glow: #43ffb4;
+      --glow-rgb: 67, 255, 180;
       --accent: #ffb84a;
+      --accent-rgb: 255, 184, 74;
+      --border-rgb: 110, 255, 198;
+      --panel-border-rgb: 103, 255, 190;
       --danger: #ff4d6d;
       --panel: rgba(7, 18, 14, 0.85);
-      --panel-border: rgba(103, 255, 190, 0.3);
+      --panel-border: rgba(var(--panel-border-rgb), 0.3);
       --scanline: rgba(10, 26, 20, 0.35);
+      --input-bg: #040b08;
+      --timeline-bg: rgba(4, 10, 8, 0.65);
+      --button-bg: linear-gradient(120deg, rgba(7, 32, 20, 0.9), rgba(8, 64, 40, 0.9));
     }
 
     * { box-sizing: border-box; }
@@ -26,7 +36,7 @@
     html, body {
       height: 100%;
       margin: 0;
-      background: radial-gradient(1200px 800px at 20% 20%, #0f2a1e 0%, #0b120f 45%, #050806 100%);
+      background: radial-gradient(1200px 800px at 20% 20%, var(--bg-2) 0%, var(--bg) 45%, var(--bg-3) 100%);
       color: var(--text);
       font-family: "Share Tech Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       letter-spacing: 0.02em;
@@ -38,8 +48,8 @@
       inset: 0;
       background:
         repeating-linear-gradient(180deg, transparent 0px, transparent 2px, var(--scanline) 3px),
-        radial-gradient(800px 600px at 70% 10%, rgba(67, 255, 180, 0.15), transparent 60%),
-        radial-gradient(700px 500px at 10% 80%, rgba(255, 184, 74, 0.15), transparent 60%);
+        radial-gradient(800px 600px at 70% 10%, rgba(var(--glow-rgb), 0.15), transparent 60%),
+        radial-gradient(700px 500px at 10% 80%, rgba(var(--accent-rgb), 0.15), transparent 60%);
       mix-blend-mode: screen;
       opacity: 0.6;
       pointer-events: none;
@@ -73,7 +83,7 @@
       width: min(1200px, 100%);
       border: 2px solid var(--panel-border);
       background: var(--panel);
-      box-shadow: 0 0 30px rgba(67, 255, 180, 0.2), 0 0 90px rgba(67, 255, 180, 0.15);
+      box-shadow: 0 0 30px rgba(var(--glow-rgb), 0.2), 0 0 90px rgba(var(--glow-rgb), 0.15);
       padding: 28px;
       position: relative;
       overflow: visible;
@@ -88,7 +98,7 @@
       content: "";
       position: absolute;
       inset: -10px;
-      border: 1px dashed rgba(67, 255, 180, 0.2);
+      border: 1px dashed rgba(var(--glow-rgb), 0.2);
       pointer-events: none;
       z-index: 0;
     }
@@ -111,7 +121,7 @@
       font-family: "Press Start 2P", system-ui, sans-serif;
       font-size: clamp(18px, 2vw, 26px);
       text-transform: uppercase;
-      text-shadow: 0 0 10px var(--glow), 0 0 20px rgba(67, 255, 180, 0.4);
+      text-shadow: 0 0 10px var(--glow), 0 0 20px rgba(var(--glow-rgb), 0.4);
     }
 
     .status {
@@ -167,18 +177,62 @@
       right: 22px;
       bottom: 22px;
       z-index: 10;
-      border: 1px solid rgba(110, 255, 198, 0.5);
-      background: rgba(6, 18, 12, 0.9);
+      border: 1px solid rgba(var(--border-rgb), 0.5);
+      background: var(--panel);
       color: var(--text);
       padding: 10px 14px;
       cursor: pointer;
       text-transform: uppercase;
       letter-spacing: 0.1em;
-      box-shadow: 0 0 14px rgba(67, 255, 180, 0.2);
+      box-shadow: 0 0 14px rgba(var(--glow-rgb), 0.2);
     }
 
     .help-button:hover {
-      box-shadow: 0 0 18px rgba(67, 255, 180, 0.35);
+      box-shadow: 0 0 18px rgba(var(--glow-rgb), 0.35);
+    }
+
+    .theme-control {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      z-index: 9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--panel);
+      border: 1px solid rgba(var(--border-rgb), 0.45);
+      border-radius: 6px;
+      color: var(--muted);
+      box-shadow: 0 0 12px rgba(var(--glow-rgb), 0.25);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .theme-control input[type="range"] {
+      width: 180px;
+    }
+
+    .theme-control .theme-readout {
+      display: none;
+    }
+
+    @media (max-width: 700px) {
+      .theme-control {
+        width: calc(100% - 120px);
+        justify-content: space-between;
+      }
+
+      .theme-control input[type="range"] {
+        flex: 1;
+        width: auto;
+      }
+
+      .theme-control .theme-readout {
+        display: none;
+      }
     }
 
     .help-modal {
@@ -198,9 +252,9 @@
 
     .help-terminal {
       width: min(720px, 100%);
-      background: #020705;
-      border: 1px solid rgba(110, 255, 198, 0.4);
-      box-shadow: 0 0 24px rgba(67, 255, 180, 0.3);
+      background: var(--bg-3);
+      border: 1px solid rgba(var(--border-rgb), 0.4);
+      box-shadow: 0 0 24px rgba(var(--glow-rgb), 0.3);
       padding: 20px;
       font-size: 12px;
       line-height: 1.6;
@@ -218,6 +272,48 @@
       margin: 0;
       white-space: pre-wrap;
       color: var(--text);
+    }
+
+    .route-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 6, 5, 0.8);
+      z-index: 18;
+      padding: 24px;
+    }
+
+    .route-modal.active {
+      display: flex;
+    }
+
+    .route-panel {
+      width: min(420px, 100%);
+      background: var(--panel);
+      border: 1px solid rgba(var(--border-rgb), 0.4);
+      box-shadow: 0 0 20px rgba(var(--glow-rgb), 0.25);
+      padding: 16px;
+      font-size: 12px;
+    }
+
+    .route-panel h3 {
+      margin: 0 0 10px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+    }
+
+    .route-panel label {
+      margin-bottom: 10px;
+    }
+
+    .route-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
     }
 
     .help-cursor {
@@ -274,9 +370,9 @@
     }
 
     input[type="range"], input[type="number"], input[type="text"], select {
-      background: #040b08;
+      background: var(--input-bg);
       color: var(--text);
-      border: 1px solid rgba(110, 255, 198, 0.3);
+      border: 1px solid rgba(var(--border-rgb), 0.3);
       padding: 3px 5px;
       border-radius: 4px;
       outline: none;
@@ -305,12 +401,21 @@
       font-size: 9px;
       color: var(--muted);
       padding: 2px 4px;
-      border: 1px solid rgba(110, 255, 198, 0.2);
+      border: 1px solid rgba(var(--border-rgb), 0.2);
       border-radius: 4px;
     }
 
     .midi-on .midi-velocity {
       display: flex;
+    }
+
+    .midi-route {
+      display: none;
+    }
+
+    .midi-on .midi-route {
+      display: inline-flex;
+      align-items: center;
     }
 
     .midi-velocity input[type="range"] {
@@ -325,8 +430,8 @@
     }
 
     button {
-      border: 1px solid rgba(110, 255, 198, 0.5);
-      background: linear-gradient(120deg, rgba(7, 32, 20, 0.9), rgba(8, 64, 40, 0.9));
+      border: 1px solid rgba(var(--border-rgb), 0.5);
+      background: var(--button-bg);
       color: var(--text);
       padding: 5px 8px;
       cursor: pointer;
@@ -337,11 +442,11 @@
 
     button:hover {
       transform: translateY(-2px);
-      box-shadow: 0 0 12px rgba(67, 255, 180, 0.35);
+      box-shadow: 0 0 12px rgba(var(--glow-rgb), 0.35);
     }
 
     button.secondary {
-      border-color: rgba(255, 184, 74, 0.6);
+      border-color: rgba(var(--accent-rgb), 0.6);
       color: var(--accent);
     }
 
@@ -355,8 +460,8 @@
     .timeline-view {
       --beat-px: 34px;
       --bar-px: calc(var(--beat-px) * 4);
-      border: 1px solid rgba(110, 255, 198, 0.3);
-      background: rgba(4, 10, 8, 0.65);
+      border: 1px solid rgba(var(--border-rgb), 0.3);
+      background: var(--timeline-bg);
       width: 100%;
       max-width: 100%;
       overflow-x: hidden;
@@ -368,10 +473,10 @@
     .ruler {
       position: relative;
       height: 32px;
-      border-bottom: 1px solid rgba(110, 255, 198, 0.25);
+      border-bottom: 1px solid rgba(var(--border-rgb), 0.25);
       background-image:
-        repeating-linear-gradient(90deg, rgba(67, 255, 180, 0.35) 0, rgba(67, 255, 180, 0.35) 1px, transparent 1px, transparent var(--bar-px)),
-        repeating-linear-gradient(90deg, rgba(67, 255, 180, 0.12) 0, rgba(67, 255, 180, 0.12) 1px, transparent 1px, transparent var(--beat-px));
+        repeating-linear-gradient(90deg, rgba(var(--glow-rgb), 0.35) 0, rgba(var(--glow-rgb), 0.35) 1px, transparent 1px, transparent var(--bar-px)),
+        repeating-linear-gradient(90deg, rgba(var(--glow-rgb), 0.12) 0, rgba(var(--glow-rgb), 0.12) 1px, transparent 1px, transparent var(--beat-px));
     }
 
     .bar-label {
@@ -387,30 +492,30 @@
       position: relative;
       height: 140px;
       background-image:
-        repeating-linear-gradient(90deg, rgba(67, 255, 180, 0.3) 0, rgba(67, 255, 180, 0.3) 1px, transparent 1px, transparent var(--bar-px)),
-        repeating-linear-gradient(90deg, rgba(67, 255, 180, 0.08) 0, rgba(67, 255, 180, 0.08) 1px, transparent 1px, transparent var(--beat-px));
+        repeating-linear-gradient(90deg, rgba(var(--glow-rgb), 0.3) 0, rgba(var(--glow-rgb), 0.3) 1px, transparent 1px, transparent var(--bar-px)),
+        repeating-linear-gradient(90deg, rgba(var(--glow-rgb), 0.08) 0, rgba(var(--glow-rgb), 0.08) 1px, transparent 1px, transparent var(--beat-px));
     }
 
     .clip {
       position: absolute;
       top: 32px;
       height: 64px;
-      border: 1px solid rgba(110, 255, 198, 0.55);
+      border: 1px solid rgba(var(--border-rgb), 0.55);
       border-left-width: 2px;
-      border-left-color: rgba(255, 184, 74, 0.8);
-      background: linear-gradient(135deg, rgba(67, 255, 180, 0.2), rgba(4, 10, 8, 0.75));
+      border-left-color: rgba(var(--accent-rgb), 0.8);
+      background: linear-gradient(135deg, rgba(var(--glow-rgb), 0.2), rgba(4, 10, 8, 0.75));
       color: var(--text);
       padding: 8px 10px;
-      text-shadow: 0 0 6px rgba(67, 255, 180, 0.5);
-      box-shadow: 0 0 12px rgba(67, 255, 180, 0.2);
+      text-shadow: 0 0 6px rgba(var(--glow-rgb), 0.5);
+      box-shadow: 0 0 12px rgba(var(--glow-rgb), 0.2);
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
     }
 
     .clip.active {
-      border-color: rgba(255, 184, 74, 0.95);
-      box-shadow: 0 0 18px rgba(255, 184, 74, 0.35);
+      border-color: rgba(var(--accent-rgb), 0.95);
+      box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.35);
     }
 
     .clip-title {
@@ -435,9 +540,9 @@
     .text-export textarea {
       width: 100%;
       min-height: 80px;
-      background: #040b08;
+      background: var(--input-bg);
       color: var(--text);
-      border: 1px solid rgba(110, 255, 198, 0.3);
+      border: 1px solid rgba(var(--border-rgb), 0.3);
       padding: 8px 10px;
       border-radius: 4px;
       resize: vertical;
@@ -445,8 +550,8 @@
 
     .progression-highlight {
       display: block;
-      border: 1px solid rgba(110, 255, 198, 0.3);
-      background: #040b08;
+      border: 1px solid rgba(var(--border-rgb), 0.3);
+      background: var(--input-bg);
       padding: 10px;
       border-radius: 4px;
       font-size: 12px;
@@ -456,25 +561,25 @@
     }
 
     .progression-highlight mark {
-      background: rgba(255, 184, 74, 0.25);
+      background: rgba(var(--accent-rgb), 0.25);
       color: var(--text);
       padding: 0 2px;
       border-radius: 3px;
-      box-shadow: 0 0 8px rgba(255, 184, 74, 0.3);
+      box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.3);
     }
 
     .oscilloscope {
       width: 100%;
       height: 120px;
-      border: 1px solid rgba(110, 255, 198, 0.3);
-      background: radial-gradient(circle at 20% 20%, rgba(67, 255, 180, 0.1), transparent 60%), #020705;
-      box-shadow: inset 0 0 20px rgba(7, 40, 24, 0.6);
+      border: 1px solid rgba(var(--border-rgb), 0.3);
+      background: radial-gradient(circle at 20% 20%, rgba(var(--glow-rgb), 0.1), transparent 60%), var(--bg-3);
+      box-shadow: inset 0 0 20px rgba(var(--glow-rgb), 0.18);
     }
 
     .footer {
       margin-top: 18px;
       font-size: 11px;
-      color: rgba(127, 230, 193, 0.7);
+      color: rgba(var(--muted-rgb), 0.7);
     }
 
     @media (max-width: 900px) {
@@ -531,6 +636,11 @@
               <span class="readout" id="densityReadout">50%</span>
             </label>
             <label>
+              Color
+              <input id="color" type="range" min="0" max="100" value="50" />
+              <span class="readout" id="colorReadout">50%</span>
+            </label>
+            <label>
               Modulation amount
               <input id="modulation" type="range" min="0" max="100" value="15" />
               <span class="readout" id="modulationReadout">15%</span>
@@ -565,10 +675,11 @@
             <button id="play">Play</button>
             <button id="download" class="secondary">Download .mid</button>
             <button id="midiToggle" class="secondary">MIDI Out</button>
+            <button id="midiRoute" class="secondary midi-route">Route</button>
             <div class="midi-velocity">
               <span>Vel</span>
-              <input id="midiVelocity" type="range" min="1" max="127" value="96" />
-              <span id="midiVelocityValue" class="midi-velocity-value">96</span>
+              <input id="midiVelocity" type="range" min="1" max="127" value="60" />
+              <span id="midiVelocityValue" class="midi-velocity-value">60</span>
             </div>
           </div>
           <h2>Progression</h2>
@@ -592,7 +703,27 @@
     </div>
   </div>
 
+  <div class="theme-control">
+    <span>Theme</span>
+    <input id="themeSlider" type="range" min="0" max="400" value="0" step="1" />
+  </div>
   <button id="helpButton" class="help-button">?</button>
+  <div id="routeModal" class="route-modal" aria-hidden="true">
+    <div class="route-panel" role="dialog" aria-modal="true" aria-labelledby="routeTitle">
+      <h3 id="routeTitle">MIDI Routing</h3>
+      <label>
+        MIDI Out
+        <select id="midiOutSelect"></select>
+      </label>
+      <label>
+        MIDI In (clock)
+        <select id="midiInSelect"></select>
+      </label>
+      <div class="route-actions">
+        <button id="routeClose" class="secondary">X</button>
+      </div>
+    </div>
+  </div>
   <div id="helpModal" class="help-modal" aria-hidden="true">
     <div class="help-terminal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
       <h3 id="helpTitle">¢hange.machine // operator manual</h3>
@@ -640,12 +771,15 @@
       "6/9": [0, 4, 7, 9, 14],
       "7": [0, 4, 7, 10],
       "7sus4": [0, 5, 7, 10],
+      "11": [0, 4, 7, 10, 14, 17],
       "9": [0, 4, 7, 10, 14],
       "m7": [0, 3, 7, 10],
       "m9": [0, 3, 7, 10, 14],
+      "m11": [0, 3, 7, 10, 14, 17],
       "maj7": [0, 4, 7, 11],
       "maj9#11": [0, 4, 11, 14, 18],
       "maj9": [0, 4, 7, 11, 14],
+      "maj13": [0, 4, 7, 11, 14, 21],
       "13b9": [0, 4, 10, 13, 21],
       "13": [0, 4, 10, 14, 21],
       "7alt": [0, 4, 10, 13, 18]
@@ -665,16 +799,96 @@
       "6/9": "6/9",
       "7": "7",
       "7sus4": "7sus4",
+      "11": "11",
       "9": "9",
       "m7": "m7",
       "m9": "m9",
+      "m11": "m11",
       "maj7": "maj7",
       "maj9#11": "maj9#11",
       "maj9": "maj9",
+      "maj13": "maj13",
       "13b9": "13b9",
       "13": "13",
       "7alt": "7alt"
     };
+
+    const colorQualityPools = {
+      maj: {
+        low: ["maj", "add9", "6"],
+        lowmid: ["maj", "add9", "6/9", "maj7"],
+        mid: ["maj7", "6/9", "maj9"],
+        high: ["maj9", "maj9#11", "maj13"],
+        ultra: ["maj9#11", "maj13"]
+      },
+      min: {
+        low: ["m", "m6"],
+        lowmid: ["m", "m6", "m7"],
+        mid: ["m7", "m9"],
+        high: ["m9", "m11"],
+        ultra: ["m11", "m9"]
+      },
+      dom: {
+        low: ["7", "7sus4"],
+        lowmid: ["7", "9", "7sus4"],
+        mid: ["9", "13", "11"],
+        high: ["7alt", "13b9", "13", "11"],
+        ultra: ["7alt", "13b9", "13", "11"]
+      },
+      dim: {
+        low: ["dim"],
+        lowmid: ["dim"],
+        mid: ["dim7"],
+        high: ["dim7"],
+        ultra: ["dim7"]
+      },
+      halfdim: {
+        low: ["m7b5"],
+        lowmid: ["m7b5"],
+        mid: ["m7b5"],
+        high: ["m7b5"],
+        ultra: ["m7b5"]
+      },
+      sus: {
+        low: ["sus2", "sus4"],
+        lowmid: ["sus4"],
+        mid: ["sus4", "7sus4"],
+        high: ["7sus4"],
+        ultra: ["7sus4"]
+      },
+      power: {
+        low: ["5"],
+        lowmid: ["5"],
+        mid: ["5"],
+        high: ["5"],
+        ultra: ["5"]
+      }
+    };
+
+    function getQualityFamily(quality) {
+      if (["maj", "maj7", "maj9", "maj9#11", "maj13", "6", "6/9", "add9"].includes(quality)) return "maj";
+      if (["m", "m7", "m9", "m11", "m6"].includes(quality)) return "min";
+      if (["7", "9", "11", "13", "13b9", "7alt", "7sus4"].includes(quality)) return "dom";
+      if (["dim", "dim7"].includes(quality)) return "dim";
+      if (["m7b5"].includes(quality)) return "halfdim";
+      if (["sus2", "sus4"].includes(quality)) return "sus";
+      if (["5"].includes(quality)) return "power";
+      return "maj";
+    }
+
+    function applyColorToQuality(quality, colorPercent, colorSeed) {
+      if (!qualities[quality]) return quality;
+      const family = getQualityFamily(quality);
+      const pools = colorQualityPools[family] || colorQualityPools.maj;
+      const tiers = ["low", "lowmid", "mid", "high", "ultra"];
+      const rng = makeRng(`${colorSeed}|${quality}`);
+      const base = (Math.max(0, Math.min(100, colorPercent)) / 100) * (tiers.length - 1);
+      const jitter = (rng() - 0.5) * 0.9;
+      const tierIndex = Math.max(0, Math.min(tiers.length - 1, Math.round(base + jitter)));
+      const tier = tiers[tierIndex];
+      const options = pools[tier] && pools[tier].length ? pools[tier] : [quality];
+      return options[Math.floor(rng() * options.length)];
+    }
 
     const genreProfiles = {
       base: {
@@ -1995,6 +2209,7 @@
     function generateBluesProgression({
       bars,
       key,
+      seed,
       rng,
       modulationPercent,
       densityAdjusted,
@@ -2002,7 +2217,8 @@
       allowTriplets,
       allowDense,
       subdivisionMode,
-      profile
+      profile,
+      colorPercent
     }) {
       const totalBars = Math.max(4, bars);
       const keyIndex = noteNames.indexOf(key);
@@ -2021,6 +2237,7 @@
         { base: "V", passing: [] }
       ];
       const chords = [];
+      let chordIndex = 0;
       let currentKeyIndex = keyIndex;
       for (let bar = 0; bar < totalBars; bar++) {
         currentKeyIndex = maybeModulateKey(currentKeyIndex, keyIndex, rng, modulationPercent);
@@ -2043,18 +2260,22 @@
           }
           const offset = degreeOffsets[degree] ?? 0;
           const rootIndex = (currentKeyIndex + offset + 12) % 12;
-          const quality = pickBluesQuality(degree, profile, rng);
+          const qualityBase = pickBluesQuality(degree, profile, rng);
+          const colorSeed = `${seed}|color|${chordIndex}`;
+          const quality = applyColorToQuality(qualityBase, colorPercent, colorSeed);
+          const voicingSeed = `${seed}|voice|${chordIndex}`;
           chords.push({
             name: chordName(rootIndex, quality),
             duration: pattern[i],
-            notes: buildChord(rootIndex, quality, rng)
+            notes: buildChord(rootIndex, quality, makeRng(voicingSeed))
           });
+          chordIndex += 1;
         }
       }
       return chords;
     }
 
-    function generateProgression({ bars, key, densityPercent, seed, subdivision, subdivisionDensity, genre, modulationPercent }) {
+    function generateProgression({ bars, key, densityPercent, seed, subdivision, subdivisionDensity, genre, modulationPercent, colorPercent }) {
       const rng = makeRng(seed);
       const totalBars = Math.max(4, bars);
       const totalBeats = totalBars * 4;
@@ -2065,6 +2286,7 @@
         return generateBluesProgression({
           bars: totalBars,
           key,
+          seed,
           rng,
           modulationPercent,
           densityAdjusted: Math.max(0, Math.min(100, densityPercent + (profile.densityBias || 0))),
@@ -2072,7 +2294,8 @@
           allowTriplets: profile.allowTriplets !== false,
           allowDense: profile.allowDense !== false,
           subdivisionMode: subdivision,
-          profile
+          profile,
+          colorPercent
         });
       }
 
@@ -2084,6 +2307,7 @@
       let beatsRemaining = totalBeats;
       let functionState = "predom";
       const chords = [];
+      let chordIndex = 0;
       const template = profile.type === "template" ? pick(profile.templates, rng) : null;
       let templateIndex = 0;
       let currentKeyIndex = keyIndex;
@@ -2139,14 +2363,18 @@
 
           const offset = degreeOffsets[degree] ?? 0;
           const rootIndex = (currentKeyIndex + offset + 12) % 12;
-          const notes = buildChord(rootIndex, quality, rng);
+          const colorSeed = `${seed}|color|${chordIndex}`;
+          const coloredQuality = applyColorToQuality(quality, colorPercent, colorSeed);
+          const voicingSeed = `${seed}|voice|${chordIndex}`;
+          const notes = buildChord(rootIndex, coloredQuality, makeRng(voicingSeed));
           const duration = pattern[i];
 
           chords.push({
-            name: chordName(rootIndex, quality),
+            name: chordName(rootIndex, coloredQuality),
             duration,
             notes
           });
+          chordIndex += 1;
           beatsRemaining -= duration;
         }
       }
@@ -2275,11 +2503,18 @@
     const tempoReadout = document.getElementById("tempoReadout");
     const barsInput = document.getElementById("bars");
     const densityInput = document.getElementById("density");
+    const colorInput = document.getElementById("color");
     const modulationInput = document.getElementById("modulation");
     const subdivisionDensityInput = document.getElementById("subdivisionDensity");
     const subdivisionInput = document.getElementById("subdivision");
     const seedInput = document.getElementById("seed");
+    const themeSlider = document.getElementById("themeSlider");
     const midiToggle = document.getElementById("midiToggle");
+    const midiRoute = document.getElementById("midiRoute");
+    const routeModal = document.getElementById("routeModal");
+    const routeClose = document.getElementById("routeClose");
+    const midiOutSelect = document.getElementById("midiOutSelect");
+    const midiInSelect = document.getElementById("midiInSelect");
     const midiVelocity = document.getElementById("midiVelocity");
     const midiVelocityValue = document.getElementById("midiVelocityValue");
     const importSeed = document.getElementById("importSeed");
@@ -2291,6 +2526,7 @@
     const helpText = document.getElementById("helpText");
     const barsReadout = document.getElementById("barsReadout");
     const densityReadout = document.getElementById("densityReadout");
+    const colorReadout = document.getElementById("colorReadout");
     const modulationReadout = document.getElementById("modulationReadout");
     const subdivisionDensityReadout = document.getElementById("subdivisionDensityReadout");
     const timelineView = document.getElementById("timelineView");
@@ -2541,12 +2777,306 @@
         genreSub.value = subKeys[Math.floor(rng() * subKeys.length)];
       }
       if (densityInput) densityInput.value = String(Math.floor(rng() * 101));
+      if (colorInput) colorInput.value = String(Math.floor(rng() * 101));
       if (subdivisionDensityInput) subdivisionDensityInput.value = String(Math.floor(rng() * 101));
       if (modulationInput) modulationInput.value = String(Math.floor(rng() * 101));
       if (barsInput) barsInput.value = String(4 + Math.floor(rng() * 29));
       if (tempoInput) tempoInput.value = String(60 + Math.floor(rng() * 141));
       if (subdivisionInput) subdivisionInput.value = rng() < 0.5 ? "even" : "mixed";
       updateReadouts();
+    }
+
+    let oscStrokeColor = "rgba(67, 255, 180, 1)";
+    let oscShadowColor = "rgba(67, 255, 180, 0.5)";
+    let oscMidColor = "rgba(67, 255, 180, 0.2)";
+    let oscFillColor = "rgba(2, 7, 5, 0.9)";
+
+    function updateThemeColors() {
+      const root = getComputedStyle(document.documentElement);
+      const glowRgb = root.getPropertyValue("--glow-rgb").trim() || "67, 255, 180";
+      const bg3 = root.getPropertyValue("--bg-3").trim() || "#020705";
+      oscStrokeColor = `rgba(${glowRgb}, 1)`;
+      oscShadowColor = `rgba(${glowRgb}, 0.5)`;
+      oscMidColor = `rgba(${glowRgb}, 0.2)`;
+      oscFillColor = bg3;
+    }
+
+    const themes = [
+      {
+        name: "Neo Green",
+        vars: {
+          "--bg": "#0a0f0c",
+          "--bg-2": "#0f2a1e",
+          "--bg-3": "#050806",
+          "--grid-rgb": "82, 255, 171",
+          "--text": "#c9ffe7",
+          "--muted": "#7fe6c1",
+          "--muted-rgb": "127, 230, 193",
+          "--glow": "#43ffb4",
+          "--glow-rgb": "67, 255, 180",
+          "--accent": "#ffb84a",
+          "--accent-rgb": "255, 184, 74",
+          "--border-rgb": "110, 255, 198",
+          "--panel-border-rgb": "103, 255, 190",
+          "--panel": "rgba(7, 18, 14, 0.85)",
+          "--scanline": "rgba(10, 26, 20, 0.35)",
+          "--input-bg": "#040b08",
+          "--timeline-bg": "rgba(4, 10, 8, 0.65)",
+          "--button-bg": "linear-gradient(120deg, rgba(7, 32, 20, 0.9), rgba(8, 64, 40, 0.9))"
+        }
+      },
+      {
+        name: "Amber CRT",
+        vars: {
+          "--bg": "#1a1208",
+          "--bg-2": "#2a1b0f",
+          "--bg-3": "#0b0704",
+          "--grid-rgb": "255, 196, 120",
+          "--text": "#ffe8c6",
+          "--muted": "#f0c998",
+          "--muted-rgb": "240, 201, 152",
+          "--glow": "#ffb347",
+          "--glow-rgb": "255, 179, 71",
+          "--accent": "#4ad1ff",
+          "--accent-rgb": "74, 209, 255",
+          "--border-rgb": "255, 199, 128",
+          "--panel-border-rgb": "255, 190, 120",
+          "--panel": "rgba(24, 14, 8, 0.88)",
+          "--scanline": "rgba(30, 18, 10, 0.4)",
+          "--input-bg": "#140c06",
+          "--timeline-bg": "rgba(18, 11, 6, 0.65)",
+          "--button-bg": "linear-gradient(120deg, rgba(60, 32, 12, 0.9), rgba(90, 45, 16, 0.9))"
+        }
+      },
+      {
+        name: "Ice Blue",
+        vars: {
+          "--bg": "#07131c",
+          "--bg-2": "#0b2433",
+          "--bg-3": "#04070c",
+          "--grid-rgb": "120, 200, 255",
+          "--text": "#d8f4ff",
+          "--muted": "#9ad5e8",
+          "--muted-rgb": "154, 213, 232",
+          "--glow": "#78d8ff",
+          "--glow-rgb": "120, 216, 255",
+          "--accent": "#ffb4d6",
+          "--accent-rgb": "255, 180, 214",
+          "--border-rgb": "130, 214, 255",
+          "--panel-border-rgb": "120, 200, 240",
+          "--panel": "rgba(8, 18, 26, 0.88)",
+          "--scanline": "rgba(7, 20, 30, 0.35)",
+          "--input-bg": "#061019",
+          "--timeline-bg": "rgba(6, 14, 22, 0.65)",
+          "--button-bg": "linear-gradient(120deg, rgba(10, 40, 60, 0.9), rgba(12, 70, 96, 0.9))"
+        }
+      },
+      {
+        name: "Violet Flux",
+        vars: {
+          "--bg": "#11081e",
+          "--bg-2": "#2a1240",
+          "--bg-3": "#07050c",
+          "--grid-rgb": "190, 140, 255",
+          "--text": "#f1ddff",
+          "--muted": "#c9a8e8",
+          "--muted-rgb": "201, 168, 232",
+          "--glow": "#d08bff",
+          "--glow-rgb": "208, 139, 255",
+          "--accent": "#5cffc8",
+          "--accent-rgb": "92, 255, 200",
+          "--border-rgb": "190, 150, 255",
+          "--panel-border-rgb": "180, 140, 240",
+          "--panel": "rgba(20, 10, 30, 0.88)",
+          "--scanline": "rgba(20, 10, 30, 0.35)",
+          "--input-bg": "#0d0614",
+          "--timeline-bg": "rgba(12, 7, 18, 0.65)",
+          "--button-bg": "linear-gradient(120deg, rgba(38, 16, 70, 0.9), rgba(68, 28, 110, 0.9))"
+        }
+      },
+      {
+        name: "Crimson Night",
+        vars: {
+          "--bg": "#1a0a0c",
+          "--bg-2": "#3a1216",
+          "--bg-3": "#070304",
+          "--grid-rgb": "255, 120, 120",
+          "--text": "#ffe6e1",
+          "--muted": "#f0b2a8",
+          "--muted-rgb": "240, 178, 168",
+          "--glow": "#ff6b6b",
+          "--glow-rgb": "255, 107, 107",
+          "--accent": "#ffd166",
+          "--accent-rgb": "255, 209, 102",
+          "--border-rgb": "255, 140, 140",
+          "--panel-border-rgb": "255, 120, 120",
+          "--panel": "rgba(24, 8, 10, 0.88)",
+          "--scanline": "rgba(30, 10, 12, 0.4)",
+          "--input-bg": "#140608",
+          "--timeline-bg": "rgba(16, 7, 9, 0.65)",
+          "--button-bg": "linear-gradient(120deg, rgba(60, 16, 22, 0.9), rgba(96, 24, 32, 0.9))"
+        }
+      }
+    ];
+
+    function parseRgb(value, fallback) {
+      if (!value) return fallback;
+      if (value.trim().startsWith("rgba")) {
+        const match = value.match(/rgba\\(([^)]+)\\)/i);
+        if (match) value = match[1];
+      }
+      if (value.includes(",")) {
+        const parts = value.split(",").map(part => parseFloat(part.trim()));
+        if (parts.length >= 3 && parts.every(num => Number.isFinite(num))) {
+          return [parts[0], parts[1], parts[2]];
+        }
+      }
+      return fallback;
+    }
+
+    function parseHex(value, fallback) {
+      if (!value) return fallback;
+      const hex = value.trim().replace("#", "");
+      if (hex.length === 6) {
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        if ([r, g, b].every(num => Number.isFinite(num))) {
+          return [r, g, b];
+        }
+      }
+      return fallback;
+    }
+
+    function mixValue(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function mixRgb(a, b, t) {
+      return [
+        Math.round(mixValue(a[0], b[0], t)),
+        Math.round(mixValue(a[1], b[1], t)),
+        Math.round(mixValue(a[2], b[2], t))
+      ];
+    }
+
+    function toRgbString(rgb) {
+      return `${rgb[0]}, ${rgb[1]}, ${rgb[2]}`;
+    }
+
+    function toHex(rgb) {
+      return `#${rgb.map(channel => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, "0")).join("")}`;
+    }
+
+    function parseRgba(value, fallback) {
+      const match = value.match(/rgba\\(([^)]+)\\)/i);
+      if (!match) return fallback;
+      const parts = match[1].split(",").map(part => part.trim());
+      if (parts.length < 4) return fallback;
+      const rgb = parseRgb(parts.slice(0, 3).join(","), fallback.rgb);
+      const alpha = Number.parseFloat(parts[3]);
+      return { rgb, alpha: Number.isFinite(alpha) ? alpha : fallback.alpha };
+    }
+
+    function mixRgba(a, b, t) {
+      const rgb = mixRgb(a.rgb, b.rgb, t);
+      const alpha = mixValue(a.alpha, b.alpha, t);
+      return { rgb, alpha };
+    }
+
+    function toRgbaString(value) {
+      return `rgba(${value.rgb[0]}, ${value.rgb[1]}, ${value.rgb[2]}, ${value.alpha.toFixed(2)})`;
+    }
+
+    function parseLinearGradient(value, fallback) {
+      const match = value.match(/linear-gradient\\([^,]+,\\s*(rgba\\([^\\)]+\\))\\s*,\\s*(rgba\\([^\\)]+\\))\\s*\\)/i);
+      if (!match) return fallback;
+      return {
+        start: parseRgba(match[1], fallback.start),
+        end: parseRgba(match[2], fallback.end)
+      };
+    }
+
+    function mixLinearGradient(a, b, t, angle) {
+      const start = mixRgba(a.start, b.start, t);
+      const end = mixRgba(a.end, b.end, t);
+      return `linear-gradient(${angle}, ${toRgbaString(start)}, ${toRgbaString(end)})`;
+    }
+
+    function applyThemeMix(value) {
+      if (!themes.length) return;
+      const maxIndex = themes.length - 1;
+      const clamped = Math.max(0, Math.min(maxIndex, value));
+      const baseIndex = Math.floor(clamped);
+      const nextIndex = Math.min(maxIndex, baseIndex + 1);
+      const t = clamped - baseIndex;
+      const base = themes[baseIndex].vars;
+      const next = themes[nextIndex].vars;
+      const root = document.documentElement;
+
+      const bg = toHex(mixRgb(parseHex(base["--bg"], [10, 15, 12]), parseHex(next["--bg"], [10, 15, 12]), t));
+      const bg2 = toHex(mixRgb(parseHex(base["--bg-2"], [15, 42, 30]), parseHex(next["--bg-2"], [15, 42, 30]), t));
+      const bg3 = toHex(mixRgb(parseHex(base["--bg-3"], [5, 8, 6]), parseHex(next["--bg-3"], [5, 8, 6]), t));
+      const text = toHex(mixRgb(parseHex(base["--text"], [201, 255, 231]), parseHex(next["--text"], [201, 255, 231]), t));
+      const muted = toHex(mixRgb(parseHex(base["--muted"], [127, 230, 193]), parseHex(next["--muted"], [127, 230, 193]), t));
+      const glow = toHex(mixRgb(parseHex(base["--glow"], [67, 255, 180]), parseHex(next["--glow"], [67, 255, 180]), t));
+      const accent = toHex(mixRgb(parseHex(base["--accent"], [255, 184, 74]), parseHex(next["--accent"], [255, 184, 74]), t));
+      const gridRgb = mixRgb(parseRgb(base["--grid-rgb"], [82, 255, 171]), parseRgb(next["--grid-rgb"], [82, 255, 171]), t);
+      const mutedRgb = mixRgb(parseRgb(base["--muted-rgb"], [127, 230, 193]), parseRgb(next["--muted-rgb"], [127, 230, 193]), t);
+      const glowRgb = mixRgb(parseRgb(base["--glow-rgb"], [67, 255, 180]), parseRgb(next["--glow-rgb"], [67, 255, 180]), t);
+      const accentRgb = mixRgb(parseRgb(base["--accent-rgb"], [255, 184, 74]), parseRgb(next["--accent-rgb"], [255, 184, 74]), t);
+      const borderRgb = mixRgb(parseRgb(base["--border-rgb"], [110, 255, 198]), parseRgb(next["--border-rgb"], [110, 255, 198]), t);
+      const panelBorderRgb = mixRgb(parseRgb(base["--panel-border-rgb"], [103, 255, 190]), parseRgb(next["--panel-border-rgb"], [103, 255, 190]), t);
+
+      const panel = toRgbaString(mixRgba(
+        parseRgba(base["--panel"], { rgb: [7, 18, 14], alpha: 0.85 }),
+        parseRgba(next["--panel"], { rgb: [7, 18, 14], alpha: 0.85 }),
+        t
+      ));
+      const scanline = toRgbaString(mixRgba(
+        parseRgba(base["--scanline"], { rgb: [10, 26, 20], alpha: 0.35 }),
+        parseRgba(next["--scanline"], { rgb: [10, 26, 20], alpha: 0.35 }),
+        t
+      ));
+
+      const inputBg = toHex(mixRgb(parseHex(base["--input-bg"], [4, 11, 8]), parseHex(next["--input-bg"], [4, 11, 8]), t));
+      const timelineBg = toRgbaString(mixRgba(
+        parseRgba(base["--timeline-bg"], { rgb: [4, 10, 8], alpha: 0.65 }),
+        parseRgba(next["--timeline-bg"], { rgb: [4, 10, 8], alpha: 0.65 }),
+        t
+      ));
+      const buttonBg = mixLinearGradient(
+        parseLinearGradient(base["--button-bg"], {
+          start: { rgb: [7, 32, 20], alpha: 0.9 },
+          end: { rgb: [8, 64, 40], alpha: 0.9 }
+        }),
+        parseLinearGradient(next["--button-bg"], {
+          start: { rgb: [7, 32, 20], alpha: 0.9 },
+          end: { rgb: [8, 64, 40], alpha: 0.9 }
+        }),
+        t,
+        "120deg"
+      );
+
+      root.style.setProperty("--bg", bg);
+      root.style.setProperty("--bg-2", bg2);
+      root.style.setProperty("--bg-3", bg3);
+      root.style.setProperty("--text", text);
+      root.style.setProperty("--muted", muted);
+      root.style.setProperty("--glow", glow);
+      root.style.setProperty("--accent", accent);
+      root.style.setProperty("--grid-rgb", toRgbString(gridRgb));
+      root.style.setProperty("--muted-rgb", toRgbString(mutedRgb));
+      root.style.setProperty("--glow-rgb", toRgbString(glowRgb));
+      root.style.setProperty("--accent-rgb", toRgbString(accentRgb));
+      root.style.setProperty("--border-rgb", toRgbString(borderRgb));
+      root.style.setProperty("--panel-border-rgb", toRgbString(panelBorderRgb));
+      root.style.setProperty("--panel", panel);
+      root.style.setProperty("--scanline", scanline);
+      root.style.setProperty("--input-bg", inputBg);
+      root.style.setProperty("--timeline-bg", timelineBg);
+      root.style.setProperty("--button-bg", buttonBg);
+      updateThemeColors();
     }
 
     let currentMidi = null;
@@ -2575,6 +3105,8 @@
     let midiOutput = null;
     let midiEnabled = false;
     let midiInput = null;
+    let preferredOutputId = null;
+    let preferredInputId = null;
     let externalBpm = null;
     let lastClockTime = null;
     let clockSmoothing = null;
@@ -2654,22 +3186,39 @@
 
     function populateMidiOutputs() {
       const outputs = midiAccess ? Array.from(midiAccess.outputs.values()) : [];
-      const preferredOut = outputs.find(output =>
-        (output.name || "").toLowerCase().includes("logic pro virtual in")
-      );
-      midiOutput = preferredOut || outputs[0] || null;
+      let selectedOut = preferredOutputId
+        ? outputs.find(output => output.id === preferredOutputId)
+        : null;
+      if (!selectedOut) {
+        selectedOut = outputs.find(output =>
+          (output.name || "").toLowerCase().includes("logic pro virtual in")
+        ) || outputs[0] || null;
+      }
+      midiOutput = selectedOut;
+      if (midiOutput) {
+        preferredOutputId = midiOutput.id;
+      }
 
       const inputs = midiAccess ? Array.from(midiAccess.inputs.values()) : [];
-      const preferredIn = inputs.find(input =>
-        (input.name || "").toLowerCase().includes("logic pro virtual out")
-      );
-      if (midiInput && midiInput !== preferredIn) {
+      let selectedIn = preferredInputId
+        ? inputs.find(input => input.id === preferredInputId)
+        : null;
+      if (!selectedIn) {
+        selectedIn = inputs.find(input =>
+          (input.name || "").toLowerCase().includes("logic pro virtual out")
+        ) || inputs[0] || null;
+      }
+      if (midiInput && midiInput !== selectedIn) {
         midiInput.onmidimessage = null;
       }
-      midiInput = preferredIn || inputs[0] || null;
+      midiInput = selectedIn || null;
+      if (midiInput) {
+        preferredInputId = midiInput.id;
+      }
       if (midiInput) {
         midiInput.onmidimessage = handleMidiMessage;
       }
+      refreshMidiRouteOptions();
     }
 
     function sendMidiNoteOn(note, velocity = 96) {
@@ -2685,7 +3234,13 @@
     }
 
     function sendAllNotesOff() {
-      if (!midiEnabled || !midiOutput) return;
+      if (!midiEnabled || !midiOutput) {
+        activeMidiNotes.clear();
+        return;
+      }
+      activeMidiNotes.forEach(note => {
+        midiOutput.send([0x80, note, 0]);
+      });
       midiOutput.send([0xB0, 64, 0]);
       midiOutput.send([0xB0, 123, 0]);
       midiOutput.send([0xB0, 120, 0]);
@@ -2703,6 +3258,52 @@
         notes.forEach(note => sendMidiNoteOff(note));
       }, Math.max(0, startMs + durationMs));
       playTimers.push(onId, offId);
+    }
+
+    function refreshMidiRouteOptions() {
+      if (!midiOutSelect || !midiInSelect) return;
+      const outputs = midiAccess ? Array.from(midiAccess.outputs.values()) : [];
+      const inputs = midiAccess ? Array.from(midiAccess.inputs.values()) : [];
+
+      midiOutSelect.innerHTML = "";
+      if (!outputs.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No MIDI outputs";
+        midiOutSelect.appendChild(option);
+        midiOutSelect.disabled = true;
+      } else {
+        outputs.forEach(output => {
+          const option = document.createElement("option");
+          option.value = output.id;
+          option.textContent = output.name || output.id;
+          if (midiOutput && output.id === midiOutput.id) {
+            option.selected = true;
+          }
+          midiOutSelect.appendChild(option);
+        });
+        midiOutSelect.disabled = false;
+      }
+
+      midiInSelect.innerHTML = "";
+      if (!inputs.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No MIDI inputs";
+        midiInSelect.appendChild(option);
+        midiInSelect.disabled = true;
+      } else {
+        inputs.forEach(input => {
+          const option = document.createElement("option");
+          option.value = input.id;
+          option.textContent = input.name || input.id;
+          if (midiInput && input.id === midiInput.id) {
+            option.selected = true;
+          }
+          midiInSelect.appendChild(option);
+        });
+        midiInSelect.disabled = false;
+      }
     }
 
     function resizeOscilloscope() {
@@ -2727,14 +3328,14 @@
         const width = oscilloscope.clientWidth;
         const height = oscilloscope.clientHeight;
         oscCtx.clearRect(0, 0, width, height);
-        oscCtx.fillStyle = "rgba(2, 7, 5, 0.9)";
+        oscCtx.fillStyle = oscFillColor;
         oscCtx.fillRect(0, 0, width, height);
 
         analyser.getByteTimeDomainData(oscData);
         oscCtx.lineWidth = 2.4;
-        oscCtx.strokeStyle = "rgba(67, 255, 180, 1)";
+        oscCtx.strokeStyle = oscStrokeColor;
         oscCtx.shadowBlur = 12;
-        oscCtx.shadowColor = "rgba(67, 255, 180, 0.5)";
+        oscCtx.shadowColor = oscShadowColor;
         oscCtx.beginPath();
 
         const sliceWidth = width / (oscData.length - 1);
@@ -2754,7 +3355,7 @@
         oscCtx.stroke();
 
         oscCtx.shadowBlur = 0;
-        oscCtx.strokeStyle = "rgba(67, 255, 180, 0.2)";
+        oscCtx.strokeStyle = oscMidColor;
         oscCtx.beginPath();
         oscCtx.moveTo(0, height / 2);
         oscCtx.lineTo(width, height / 2);
@@ -2818,8 +3419,11 @@
     }
 
     function stopPlayback() {
-      if (!isPlaying) return;
       clearTimers();
+      if (!isPlaying) {
+        sendAllNotesOff();
+        return;
+      }
       isPlaying = false;
       playButton.textContent = "Play";
       if (audioContext && masterGain) {
@@ -2889,6 +3493,7 @@
     function updateReadouts() {
       barsReadout.textContent = `${barsInput.value} bars`;
       densityReadout.textContent = `${densityInput.value}%`;
+      colorReadout.textContent = `${colorInput.value}%`;
       modulationReadout.textContent = `${modulationInput.value}%`;
       subdivisionDensityReadout.textContent = `${subdivisionDensityInput.value}%`;
       if (midiEnabled) {
@@ -2917,6 +3522,7 @@
       updateReadouts();
       const bars = parseInt(barsInput.value, 10);
       const densityPercent = Math.max(0, Math.min(100, parseInt(densityInput.value, 10) || 0));
+      const colorPercent = Math.max(0, Math.min(100, parseInt(colorInput.value, 10) || 0));
       const modulationPercent = Math.max(0, Math.min(100, parseInt(modulationInput.value, 10) || 0));
       const subdivision = subdivisionInput.value;
       const subdivisionDensity = Math.max(0, Math.min(100, parseInt(subdivisionDensityInput.value, 10) || 0)) / 100;
@@ -2934,7 +3540,7 @@
         keyLabel = `random → ${key}`;
       }
 
-      const chords = generateProgression({ bars, key, densityPercent, seed: seedLabel, subdivision, subdivisionDensity, genre, modulationPercent });
+      const chords = generateProgression({ bars, key, densityPercent, seed: seedLabel, subdivision, subdivisionDensity, genre, modulationPercent, colorPercent });
       currentChords = chords;
       currentMidi = buildMidi(chords, bpm);
       currentSeed = seedLabel;
@@ -2993,7 +3599,7 @@
       renderProgressionHighlight(currentChordIndex);
       const subdivisionLabel = subdivision === "mixed" ? "even+triplet" : "even";
       const seedDisplay = seedLabel.startsWith("$eed") ? seedLabel : `$eed ${seedLabel}`;
-      footer.textContent = `Key ${keyLabel} | ${bars} bars | ${bpm} BPM | ${genreLabel} | density ${densityPercent}% | mod ${modulationPercent}% | ${subdivisionLabel} | subdiv ${Math.round(subdivisionDensity * 100)}% | ${seedDisplay}`;
+      footer.textContent = `Key ${keyLabel} | ${bars} bars | ${bpm} BPM | ${genreLabel} | density ${densityPercent}% | color ${colorPercent}% | mod ${modulationPercent}% | ${subdivisionLabel} | subdiv ${Math.round(subdivisionDensity * 100)}% | ${seedDisplay}`;
     }
 
     function applyRandomSeedIfNeeded() {
@@ -3046,8 +3652,9 @@
       if (!trimmed) return;
       seedIsRandom = false;
       seedDrivesSettings = true;
-      seedManual = true;
+      seedManual = false;
       render();
+      seedDrivesSettings = false;
     });
 
     seedInput.addEventListener("keydown", (event) => {
@@ -3056,8 +3663,9 @@
         if (seedInput.value.trim()) {
           seedIsRandom = false;
           seedDrivesSettings = true;
-          seedManual = true;
+          seedManual = false;
           render();
+          seedDrivesSettings = false;
         }
       }
     });
@@ -3105,6 +3713,8 @@
       "- MIDI velocity: Sets chord velocity while MIDI Out is on.",
       "- Bars: Length of the progression.",
       "- Harmonic density (%): How busy the harmony feels.",
+      "- Color (%): How extended the chord voicings are (higher = more extensions).",
+      "- Theme: Use the bottom slider to shift the overall palette.",
       "- Modulation amount (%): Likelihood of key shifts.",
       "- Subdivision density (%): How often bars subdivide.",
       "- Subdivision mode: Even only or even + triplet feel.",
@@ -3129,7 +3739,7 @@
       "",
       "UNDER CONSTRUCTION",
       "- Expanded MIDI I/O options.",
-      "- New themes."
+      "- More themes."
     ].join("\n");
 
     let helpTypeTimer = null;
@@ -3164,6 +3774,19 @@
       }
     }
 
+    function openRouteModal() {
+      if (!routeModal) return;
+      routeModal.classList.add("active");
+      routeModal.setAttribute("aria-hidden", "false");
+      refreshMidiRouteOptions();
+    }
+
+    function closeRouteModal() {
+      if (!routeModal) return;
+      routeModal.classList.remove("active");
+      routeModal.setAttribute("aria-hidden", "true");
+    }
+
     helpButton.addEventListener("click", openHelp);
     helpClose.addEventListener("click", closeHelp);
     helpModal.addEventListener("click", (event) => {
@@ -3189,6 +3812,9 @@
       if (event.key === "Escape" && helpModal.classList.contains("active")) {
         event.preventDefault();
         closeHelp();
+      } else if (event.key === "Escape" && routeModal && routeModal.classList.contains("active")) {
+        event.preventDefault();
+        closeRouteModal();
       } else if ((event.key === "c" || event.key === "C") && !isCtrl) {
         if (event.target === seedInput) return;
         event.preventDefault();
@@ -3259,6 +3885,11 @@
       seedDrivesSettings = false;
       updateReadouts();
     });
+    colorInput.addEventListener("input", () => {
+      seedDrivesSettings = false;
+      updateReadouts();
+      render();
+    });
     modulationInput.addEventListener("input", () => {
       seedDrivesSettings = false;
       updateReadouts();
@@ -3307,6 +3938,32 @@
       timelineScroll.value = String(timelineView.scrollLeft);
     });
 
+    if (midiOutSelect) {
+      midiOutSelect.addEventListener("change", () => {
+        if (!midiAccess) return;
+        const output = midiAccess.outputs.get(midiOutSelect.value) || null;
+        midiOutput = output;
+        preferredOutputId = output ? output.id : null;
+        refreshMidiRouteOptions();
+      });
+    }
+
+    if (midiInSelect) {
+      midiInSelect.addEventListener("change", () => {
+        if (!midiAccess) return;
+        const input = midiAccess.inputs.get(midiInSelect.value) || null;
+        if (midiInput && midiInput !== input) {
+          midiInput.onmidimessage = null;
+        }
+        midiInput = input;
+        preferredInputId = input ? input.id : null;
+        if (midiInput) {
+          midiInput.onmidimessage = handleMidiMessage;
+        }
+        refreshMidiRouteOptions();
+      });
+    }
+
     window.addEventListener("resize", () => {
       resizeOscilloscope();
     });
@@ -3327,6 +3984,7 @@
             updateReadouts();
             midiToggle.textContent = "MIDI Out";
             document.body.classList.remove("midi-on");
+            closeRouteModal();
             return;
           }
           midiToggle.textContent = midiOutput ? "MIDI Out: On" : "MIDI Out: No device";
@@ -3350,8 +4008,29 @@
             midiVelocity.disabled = true;
           }
           document.body.classList.remove("midi-on");
+          closeRouteModal();
         }
       });
+    }
+
+    if (midiRoute) {
+      midiRoute.addEventListener("click", async () => {
+        if (!midiEnabled) return;
+        await ensureMidi();
+        openRouteModal();
+      });
+    }
+
+    if (routeModal) {
+      routeModal.addEventListener("click", (event) => {
+        if (event.target === routeModal) {
+          closeRouteModal();
+        }
+      });
+    }
+
+    if (routeClose) {
+      routeClose.addEventListener("click", closeRouteModal);
     }
 
     if (midiVelocity && midiVelocityValue) {
@@ -3360,6 +4039,19 @@
         midiVelocityValue.textContent = midiVelocity.value;
       });
       midiVelocity.disabled = true;
+    }
+
+    if (themeSlider) {
+      const maxSteps = Math.max(0, (themes.length - 1) * 100);
+      themeSlider.max = String(maxSteps);
+      themeSlider.addEventListener("input", () => {
+        const value = (parseInt(themeSlider.value, 10) || 0) / 100;
+        applyThemeMix(value);
+      });
+      const startValue = (parseInt(themeSlider.value, 10) || 0) / 100;
+      applyThemeMix(startValue);
+    } else {
+      updateThemeColors();
     }
 
     render();
