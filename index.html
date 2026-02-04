@@ -2560,6 +2560,7 @@
     let currentSeed = "";
     let seedIsRandom = false;
     let seedDrivesSettings = false;
+    let seedManual = false;
     let isPlaying = false;
     let playTimers = [];
     let audioContext = null;
@@ -2996,10 +2997,15 @@
     }
 
     function applyRandomSeedIfNeeded() {
-      if (!seedIsRandom) return;
-      const rand = Math.random().toString(36).slice(2, 8);
-      seedInput.value = `$eed-${rand}`;
-      seedDrivesSettings = true;
+      if (seedIsRandom) {
+        const rand = Math.random().toString(36).slice(2, 8);
+        seedInput.value = `$eed-${rand}`;
+        return;
+      }
+      if (!seedManual) {
+        const rand = Math.random().toString(36).slice(2, 8);
+        seedInput.value = `$eed-${rand}`;
+      }
     }
 
     document.getElementById("generate").addEventListener("click", () => {
@@ -3040,6 +3046,7 @@
       if (!trimmed) return;
       seedIsRandom = false;
       seedDrivesSettings = true;
+      seedManual = true;
       render();
     });
 
@@ -3049,6 +3056,7 @@
         if (seedInput.value.trim()) {
           seedIsRandom = false;
           seedDrivesSettings = true;
+          seedManual = true;
           render();
         }
       }
@@ -3057,6 +3065,7 @@
     seedInput.addEventListener("input", () => {
       seedIsRandom = false;
       seedDrivesSettings = true;
+      seedManual = seedInput.value.trim().length > 0;
     });
 
     copySeed.addEventListener("click", async () => {
@@ -3080,7 +3089,9 @@
       seedInput.value = `$eed-${rand}`;
       seedIsRandom = true;
       seedDrivesSettings = true;
+      seedManual = false;
       render();
+      seedDrivesSettings = false;
     });
 
     const helpContent = [
@@ -3090,7 +3101,8 @@
       "- Key center: Choose a root or random.",
       "- Genre + Subgenre: Pick a main style and a specific variant.",
       "- Tempo: BPM for playback and MIDI.",
-      "- MIDI out: Enable WebMIDI output and follow external clock.",
+      "- MIDI out: WebMIDI in Chrome, defaults to Logic Pro Virtual In/Out, follows external clock when detected.",
+      "- MIDI velocity: Sets chord velocity while MIDI Out is on.",
       "- Bars: Length of the progression.",
       "- Harmonic density (%): How busy the harmony feels.",
       "- Modulation amount (%): Likelihood of key shifts.",
@@ -3102,7 +3114,7 @@
       "- ¢hange: Generate a new progression.",
       "- Play: Listen with a sine synth (loops).",
       "- Download .mid: Save the MIDI file.",
-      "- MIDI Out: Enable WebMIDI output and disable tempo.",
+      "- MIDI Out: Enable WebMIDI output (Chrome).",
       "- Import $eed: Load the current $eed value.",
       "- Copy $eed: Copy the current $eed.",
       "- Random $eed: Randomizes $eed and settings.",
@@ -3112,7 +3124,12 @@
       "- Space: Play/Stop (global).",
       "- Left/Right: Step through chords.",
       "- C: ¢hange (new progression).",
-      "- Enter (in $eed): Import $eed."
+      "- R: Random $eed.",
+      "- Enter (in $eed): Import $eed.",
+      "",
+      "UNDER CONSTRUCTION",
+      "- Expanded MIDI I/O options.",
+      "- New themes."
     ].join("\n");
 
     let helpTypeTimer = null;
@@ -3177,6 +3194,11 @@
         event.preventDefault();
         applyRandomSeedIfNeeded();
         render();
+        return;
+      } else if ((event.key === "r" || event.key === "R") && !isCtrl) {
+        if (event.target === seedInput) return;
+        event.preventDefault();
+        randomSeed.click();
         return;
       } else if (event.key === " ") {
         event.preventDefault();
