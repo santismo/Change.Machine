@@ -2616,6 +2616,7 @@
             clockSmoothing = clockSmoothing === null ? clamped : (clockSmoothing * 0.8 + clamped * 0.2);
             externalBpm = clockSmoothing;
             if (midiEnabled) {
+              tempoInput.disabled = true;
               tempoReadout.textContent = `EXT ${externalBpm.toFixed(1)} BPM`;
             }
           }
@@ -2623,6 +2624,12 @@
         lastClockTime = now;
       } else if (status === 0xFA || status === 0xFC) {
         lastClockTime = null;
+        externalBpm = null;
+        clockSmoothing = null;
+        if (midiEnabled) {
+          tempoInput.disabled = false;
+          updateReadouts();
+        }
       }
     }
 
@@ -2884,7 +2891,9 @@
       modulationReadout.textContent = `${modulationInput.value}%`;
       subdivisionDensityReadout.textContent = `${subdivisionDensityInput.value}%`;
       if (midiEnabled) {
-        tempoReadout.textContent = externalBpm ? `EXT ${externalBpm.toFixed(1)} BPM` : "WAITING FOR CLOCK";
+        tempoReadout.textContent = externalBpm
+          ? `EXT ${externalBpm.toFixed(1)} BPM`
+          : `INT ${tempoInput.value} BPM`;
       } else {
         tempoReadout.textContent = `${tempoInput.value} BPM`;
       }
@@ -3239,6 +3248,11 @@
     tempoInput.addEventListener("input", () => {
       seedDrivesSettings = false;
       updateReadouts();
+      if (isPlaying && (!midiEnabled || !externalBpm)) {
+        const resumeIndex = currentChordIndex >= 0 ? currentChordIndex : 0;
+        stopPlayback();
+        startPlayback(resumeIndex);
+      }
     });
     if (subdivisionInput) {
       subdivisionInput.addEventListener("change", () => {
@@ -3279,8 +3293,7 @@
       midiToggle.addEventListener("click", async () => {
         midiEnabled = !midiEnabled;
         if (midiEnabled) {
-          tempoInput.disabled = true;
-          tempoReadout.textContent = "WAITING FOR CLOCK";
+          tempoInput.disabled = false;
           if (midiVelocity) {
             midiVelocity.disabled = false;
           }
@@ -3295,6 +3308,7 @@
             return;
           }
           midiToggle.textContent = midiOutput ? "MIDI Out: On" : "MIDI Out: No device";
+          updateReadouts();
           restoreMasterGain();
         } else {
           sendAllNotesOff();
