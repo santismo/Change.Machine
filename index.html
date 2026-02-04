@@ -144,22 +144,22 @@
 
     .panel {
       border: 1px solid var(--panel-border);
-      padding: 18px;
+      padding: 12px;
       background: rgba(5, 14, 10, 0.7);
       box-shadow: inset 0 0 20px rgba(8, 40, 28, 0.6);
       min-width: 0;
     }
 
     .panel h2 {
-      margin: 0 0 14px;
-      font-size: 12px;
+      margin: 0 0 10px;
+      font-size: 11px;
       color: var(--muted);
       letter-spacing: 0.2em;
       text-transform: uppercase;
     }
 
     .panel .button-row + h2 {
-      margin-top: 10px;
+      margin-top: 6px;
     }
 
     .help-button {
@@ -222,9 +222,12 @@
 
     .help-cursor {
       display: inline-block;
-      width: 8px;
+      width: 10px;
+      height: 1em;
       margin-left: 2px;
-      background: var(--text);
+      border-left: 2px solid var(--text);
+      background: transparent;
+      vertical-align: -2px;
       animation: blink 1s steps(2, start) infinite;
     }
 
@@ -241,26 +244,26 @@
 
     .controls {
       display: grid;
-      gap: 14px;
+      gap: 8px;
     }
 
     label {
       display: grid;
-      gap: 8px;
-      font-size: 12px;
+      gap: 4px;
+      font-size: 10px;
       color: var(--muted);
     }
 
     input, select, button {
       font-family: inherit;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     input[type="range"], input[type="number"], input[type="text"], select {
       background: #040b08;
       color: var(--text);
       border: 1px solid rgba(110, 255, 198, 0.3);
-      padding: 6px 8px;
+      padding: 4px 6px;
       border-radius: 4px;
       outline: none;
     }
@@ -272,15 +275,15 @@
     .button-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 6px;
+      gap: 6px;
+      margin-top: 2px;
     }
 
     button {
       border: 1px solid rgba(110, 255, 198, 0.5);
       background: linear-gradient(120deg, rgba(7, 32, 20, 0.9), rgba(8, 64, 40, 0.9));
       color: var(--text);
-      padding: 10px 14px;
+      padding: 6px 10px;
       cursor: pointer;
       text-transform: uppercase;
       letter-spacing: 0.1em;
@@ -461,6 +464,46 @@
               <select id="keySelect"></select>
             </label>
             <label>
+              Genre
+              <select id="genre">
+                <option value="base">Base</option>
+                <option value="jazz">Jazz</option>
+                <option value="baroque">Baroque</option>
+                <option value="classical">Classical</option>
+                <option value="neoclassical">Neoclassical</option>
+                <option value="rock">Rock</option>
+                <option value="metal">Metal</option>
+                <option value="punk">Punk</option>
+                <option value="pop">Pop</option>
+                <option value="blues">Blues</option>
+                <option value="rnb">R&amp;B</option>
+                <option value="soul">Soul</option>
+                <option value="neo-soul">Neo-soul</option>
+                <option value="funk">Funk</option>
+                <option value="reggae">Reggae</option>
+                <option value="calypso">Calypso</option>
+                <option value="prog">Prog</option>
+                <option value="americana">Americana</option>
+                <option value="bebop">Bebop</option>
+                <option value="hard-bop">Hard-bop</option>
+                <option value="cool-jazz">Cool jazz</option>
+                <option value="modal-jazz">Modal jazz</option>
+                <option value="fusion">Fusion</option>
+                <option value="lofi">Lo-fi</option>
+                <option value="gospel">Gospel</option>
+                <option value="bossa">Bossa nova</option>
+                <option value="latin-jazz">Latin jazz</option>
+                <option value="samba">Samba</option>
+                <option value="swing">Swing</option>
+                <option value="impressionist">Impressionist</option>
+                <option value="romantic">Romantic</option>
+                <option value="modern-classical">Modern classical</option>
+                <option value="folk">Folk</option>
+                <option value="country">Country</option>
+                <option value="ambient">Ambient</option>
+              </select>
+            </label>
+            <label>
               Tempo (BPM)
               <input id="tempo" type="range" min="60" max="200" value="110" />
               <span class="readout" id="tempoReadout">110 BPM</span>
@@ -474,6 +517,11 @@
               Harmonic density
               <input id="density" type="range" min="0" max="100" value="50" />
               <span class="readout" id="densityReadout">50%</span>
+            </label>
+            <label>
+              Modulation amount
+              <input id="modulation" type="range" min="0" max="100" value="15" />
+              <span class="readout" id="modulationReadout">15%</span>
             </label>
             <label>
               Subdivision density
@@ -513,9 +561,9 @@
             <input id="timelineScroll" type="range" min="0" max="0" value="0" />
           </div>
           <div class="text-export">
-            <label for="progressionText">Chord text</label>
-            <textarea id="progressionText" readonly></textarea>
-            <div id="progressionHighlight" class="progression-highlight"></div>
+            <label for="progressionHighlight">Chord text</label>
+            <div id="progressionHighlight" class="progression-highlight" role="textbox" aria-readonly="true"></div>
+            <textarea id="progressionText" readonly hidden></textarea>
             <button id="copyProgression" class="secondary">Copy progression</button>
           </div>
           <canvas id="oscilloscope" class="oscilloscope"></canvas>
@@ -531,7 +579,7 @@
       <h3 id="helpTitle">¢hange.machine // operator manual</h3>
       <pre><span id="helpText"></span><span class="help-cursor" aria-hidden="true"></span></pre>
       <div class="help-actions">
-        <button id="helpClose" class="secondary">Close</button>
+        <button id="helpClose" class="secondary">X</button>
       </div>
     </div>
   </div>
@@ -541,45 +589,811 @@
 
     const degreeOffsets = {
       "I": 0,
+      "i": 0,
       "ii": 2,
       "iii": 4,
       "IV": 5,
+      "iv": 5,
       "V": 7,
+      "v": 7,
       "vi": 9,
       "vii": 11,
       "bII": 1,
+      "bIII": 3,
+      "bVI": 8,
       "bVII": 10,
-      "iv": 5,
-      "VI": 9
+      "VI": 9,
+      "#IV": 6
     };
 
     const qualities = {
+      "maj": [0, 4, 7],
+      "m": [0, 3, 7],
+      "dim": [0, 3, 6],
+      "dim7": [0, 3, 6, 9],
+      "m7b5": [0, 3, 6, 10],
+      "5": [0, 7, 12],
+      "sus2": [0, 2, 7],
+      "sus4": [0, 5, 7],
+      "add9": [0, 4, 7, 14],
+      "6": [0, 4, 7, 9],
+      "6/9": [0, 4, 7, 9, 14],
+      "7": [0, 4, 7, 10],
+      "7sus4": [0, 5, 7, 10],
+      "9": [0, 4, 7, 10, 14],
+      "m7": [0, 3, 7, 10],
+      "m9": [0, 3, 7, 10, 14],
+      "maj7": [0, 4, 7, 11],
       "maj9#11": [0, 4, 11, 14, 18],
       "maj9": [0, 4, 7, 11, 14],
-      "m9": [0, 3, 7, 10, 14],
       "13b9": [0, 4, 10, 13, 21],
       "13": [0, 4, 10, 14, 21],
       "7alt": [0, 4, 10, 13, 18]
     };
+    const qualityLabels = {
+      "maj": "maj",
+      "m": "m",
+      "dim": "dim",
+      "dim7": "dim7",
+      "m7b5": "m7b5",
+      "5": "5",
+      "sus2": "sus2",
+      "sus4": "sus4",
+      "add9": "add9",
+      "6": "6",
+      "6/9": "6/9",
+      "7": "7",
+      "7sus4": "7sus4",
+      "9": "9",
+      "m7": "m7",
+      "m9": "m9",
+      "maj7": "maj7",
+      "maj9#11": "maj9#11",
+      "maj9": "maj9",
+      "13b9": "13b9",
+      "13": "13",
+      "7alt": "7alt"
+    };
 
-    const functions = {
-      tonic: [
-        { degree: "I", quality: "maj9#11" },
-        { degree: "I", quality: "maj9" },
-        { degree: "vi", quality: "m9" }
-      ],
-      predom: [
-        { degree: "ii", quality: "m9" },
-        { degree: "iv", quality: "m9" },
-        { degree: "iii", quality: "m9" }
-      ],
-      dominant: [
-        { degree: "V", quality: "13b9" },
-        { degree: "V", quality: "7alt" },
-        { degree: "bII", quality: "7alt" },
-        { degree: "bVII", quality: "13" },
-        { degree: "VI", quality: "7alt" }
-      ]
+    const genreProfiles = {
+      base: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 0,
+        subdivisionBias: 0,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj9#11" },
+            { degree: "I", quality: "maj9" },
+            { degree: "vi", quality: "m9" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m9" },
+            { degree: "iv", quality: "m9" },
+            { degree: "iii", quality: "m9" }
+          ],
+          dominant: [
+            { degree: "V", quality: "13b9" },
+            { degree: "V", quality: "7alt" },
+            { degree: "bII", quality: "7alt" },
+            { degree: "bVII", quality: "13" },
+            { degree: "VI", quality: "7alt" }
+          ]
+        }
+      },
+      jazz: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: 0.1,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj7" },
+            { degree: "I", quality: "maj9" },
+            { degree: "vi", quality: "m7" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7" },
+            { degree: "iv", quality: "m7" },
+            { degree: "iii", quality: "m7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "V", quality: "9" },
+            { degree: "V", quality: "13" },
+            { degree: "bII", quality: "7alt" }
+          ]
+        }
+      },
+      baroque: {
+        type: "functional",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -25,
+        subdivisionBias: -0.25,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj" },
+            { degree: "vi", quality: "m" },
+            { degree: "iii", quality: "m" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m" },
+            { degree: "IV", quality: "maj" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "V", quality: "maj" },
+            { degree: "vii", quality: "dim" }
+          ]
+        }
+      },
+      classical: {
+        type: "functional",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -10,
+        subdivisionBias: -0.15,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj" },
+            { degree: "vi", quality: "m" },
+            { degree: "iii", quality: "m" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m" },
+            { degree: "IV", quality: "maj" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "vii", quality: "dim" },
+            { degree: "V", quality: "maj" }
+          ]
+        }
+      },
+      neoclassical: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: 0.05,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj9" },
+            { degree: "vi", quality: "m9" },
+            { degree: "bVI", quality: "maj" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m9" },
+            { degree: "IV", quality: "maj7" },
+            { degree: "bII", quality: "maj" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7alt" },
+            { degree: "bII", quality: "7alt" },
+            { degree: "V", quality: "13b9" }
+          ]
+        }
+      },
+      rock: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -15,
+        subdivisionBias: -0.2,
+        templates: [
+          ["I", "V", "vi", "IV"],
+          ["I", "IV", "V", "IV"],
+          ["I", "bVII", "IV", "I"],
+          ["vi", "IV", "I", "V"]
+        ],
+        degreeQualities: {
+          "I": ["5", "maj"],
+          "IV": ["5", "maj"],
+          "V": ["5", "7"],
+          "vi": ["m", "m7"],
+          "bVII": ["5", "maj"]
+        }
+      },
+      metal: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: -0.05,
+        templates: [
+          ["i", "bVI", "bVII", "i"],
+          ["i", "bII", "i", "bVII"],
+          ["i", "bVI", "i", "bVII"],
+          ["i", "bII", "bIII", "bII"]
+        ],
+        degreeQualities: {
+          "i": ["5", "m"],
+          "bII": ["5", "maj"],
+          "bIII": ["5", "maj"],
+          "bVI": ["5", "maj"],
+          "bVII": ["5", "maj"]
+        }
+      },
+      punk: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -30,
+        subdivisionBias: -0.35,
+        templates: [
+          ["I", "IV", "V", "IV"],
+          ["I", "bVII", "IV", "V"],
+          ["I", "V", "IV", "V"]
+        ],
+        degreeQualities: {
+          "I": ["5"],
+          "IV": ["5"],
+          "V": ["5"],
+          "bVII": ["5"]
+        }
+      },
+      pop: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: true,
+        densityBias: 0,
+        subdivisionBias: -0.05,
+        templates: [
+          ["I", "V", "vi", "IV"],
+          ["vi", "IV", "I", "V"],
+          ["I", "vi", "IV", "V"],
+          ["IV", "V", "iii", "vi"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "add9"],
+          "V": ["maj", "sus4"],
+          "vi": ["m", "m7"],
+          "IV": ["maj", "add9"],
+          "iii": ["m"],
+          "ii": ["m"]
+        }
+      },
+      blues: {
+        type: "blues",
+        allowTriplets: true,
+        allowDense: false,
+        densityBias: -40,
+        subdivisionBias: -0.4
+      },
+      rnb: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 15,
+        subdivisionBias: 0.1,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj7" },
+            { degree: "I", quality: "maj9" },
+            { degree: "vi", quality: "m7" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7" },
+            { degree: "IV", quality: "maj7" },
+            { degree: "iii", quality: "m7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "9" },
+            { degree: "V", quality: "13" },
+            { degree: "bII", quality: "7alt" },
+            { degree: "V", quality: "7" }
+          ]
+        }
+      },
+      soul: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: 0.05,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "6/9" },
+            { degree: "I", quality: "maj7" },
+            { degree: "vi", quality: "m7" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7" },
+            { degree: "IV", quality: "maj7" },
+            { degree: "IV", quality: "6/9" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "bVII", quality: "7" },
+            { degree: "V", quality: "9" },
+            { degree: "V", quality: "7sus4" }
+          ]
+        }
+      },
+      "neo-soul": {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 20,
+        subdivisionBias: 0.2,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj9" },
+            { degree: "I", quality: "6/9" },
+            { degree: "vi", quality: "m9" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m9" },
+            { degree: "IV", quality: "maj9" },
+            { degree: "iii", quality: "m9" },
+            { degree: "iv", quality: "m9" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7alt" },
+            { degree: "bII", quality: "7alt" },
+            { degree: "V", quality: "13b9" },
+            { degree: "V", quality: "9" }
+          ]
+        }
+      },
+      funk: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: 0.15,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "7" },
+            { degree: "I", quality: "9" },
+            { degree: "I", quality: "13" }
+          ],
+          predom: [
+            { degree: "IV", quality: "7" },
+            { degree: "ii", quality: "m7" },
+            { degree: "IV", quality: "9" }
+          ],
+          dominant: [
+            { degree: "V", quality: "9" },
+            { degree: "bVII", quality: "9" },
+            { degree: "V", quality: "7sus4" }
+          ]
+        }
+      },
+      reggae: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -20,
+        subdivisionBias: -0.25,
+        templates: [
+          ["I", "V", "vi", "IV"],
+          ["I", "bVII", "IV", "V"],
+          ["I", "V", "IV", "I"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "sus2"],
+          "V": ["maj", "sus4"],
+          "vi": ["m"],
+          "IV": ["maj", "sus2"],
+          "bVII": ["maj"]
+        }
+      },
+      calypso: {
+        type: "template",
+        allowTriplets: true,
+        allowDense: false,
+        densityBias: -10,
+        subdivisionBias: 0.05,
+        templates: [
+          ["I", "V", "I", "V"],
+          ["I", "bVII", "IV", "V"],
+          ["I", "vi", "ii", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "6"],
+          "V": ["7", "maj"],
+          "vi": ["m"],
+          "ii": ["m"],
+          "IV": ["maj"],
+          "bVII": ["maj"]
+        }
+      },
+      prog: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 20,
+        subdivisionBias: 0.15,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj9" },
+            { degree: "vi", quality: "m9" },
+            { degree: "bVI", quality: "maj7" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m9" },
+            { degree: "IV", quality: "maj9" },
+            { degree: "bII", quality: "maj7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7alt" },
+            { degree: "bII", quality: "7alt" },
+            { degree: "V", quality: "13" }
+          ]
+        }
+      },
+      americana: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -25,
+        subdivisionBias: -0.3,
+        templates: [
+          ["I", "IV", "I", "V"],
+          ["I", "V", "IV", "I"],
+          ["I", "vi", "IV", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "add9"],
+          "IV": ["maj"],
+          "V": ["maj", "sus4"],
+          "vi": ["m"]
+        }
+      },
+      bebop: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 20,
+        subdivisionBias: 0.2,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj7" },
+            { degree: "I", quality: "maj9" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7" },
+            { degree: "ii", quality: "m7b5" },
+            { degree: "iv", quality: "m7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "V", quality: "9" },
+            { degree: "V", quality: "13" },
+            { degree: "bII", quality: "7alt" },
+            { degree: "VI", quality: "7" }
+          ]
+        }
+      },
+      "hard-bop": {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: 0.1,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "6/9" },
+            { degree: "I", quality: "maj7" },
+            { degree: "vi", quality: "m7" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7" },
+            { degree: "iv", quality: "m7" },
+            { degree: "IV", quality: "7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "bVII", quality: "7" },
+            { degree: "#IV", quality: "dim7" }
+          ]
+        }
+      },
+      "cool-jazz": {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: false,
+        densityBias: -10,
+        subdivisionBias: -0.05,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj7" },
+            { degree: "I", quality: "maj9" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7" },
+            { degree: "IV", quality: "maj7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7sus4" },
+            { degree: "V", quality: "9" }
+          ]
+        }
+      },
+      "modal-jazz": {
+        type: "template",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 5,
+        subdivisionBias: 0.1,
+        templates: [
+          ["i", "bVII", "IV", "i"],
+          ["i", "IV", "bVII", "i"],
+          ["i", "bVII", "i", "IV"]
+        ],
+        degreeQualities: {
+          "i": ["m7", "m9"],
+          "bVII": ["7", "9"],
+          "IV": ["7", "9"]
+        }
+      },
+      fusion: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 25,
+        subdivisionBias: 0.2,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj9" },
+            { degree: "I", quality: "maj9#11" },
+            { degree: "vi", quality: "m9" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m9" },
+            { degree: "IV", quality: "maj9" },
+            { degree: "iii", quality: "m9" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7alt" },
+            { degree: "bII", quality: "7alt" },
+            { degree: "V", quality: "13b9" }
+          ]
+        }
+      },
+      lofi: {
+        type: "functional",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -15,
+        subdivisionBias: -0.2,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj7" },
+            { degree: "I", quality: "6/9" },
+            { degree: "vi", quality: "m7" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7" },
+            { degree: "IV", quality: "maj7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7sus4" },
+            { degree: "V", quality: "9" }
+          ]
+        }
+      },
+      gospel: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 15,
+        subdivisionBias: 0.15,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "6/9" },
+            { degree: "I", quality: "maj7" }
+          ],
+          predom: [
+            { degree: "IV", quality: "maj7" },
+            { degree: "ii", quality: "m7" },
+            { degree: "bVII", quality: "7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "V", quality: "9" },
+            { degree: "V", quality: "7sus4" }
+          ]
+        }
+      },
+      bossa: {
+        type: "template",
+        allowTriplets: true,
+        allowDense: false,
+        densityBias: -5,
+        subdivisionBias: -0.05,
+        templates: [
+          ["ii", "V", "I", "VI"],
+          ["ii", "V", "I", "I"]
+        ],
+        degreeQualities: {
+          "ii": ["m7"],
+          "V": ["7", "9"],
+          "I": ["maj7", "6/9"],
+          "VI": ["7"]
+        }
+      },
+      "latin-jazz": {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: 0.1,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj7" },
+            { degree: "I", quality: "6/9" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7" },
+            { degree: "IV", quality: "maj7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "9" },
+            { degree: "V", quality: "13" }
+          ]
+        }
+      },
+      samba: {
+        type: "template",
+        allowTriplets: true,
+        allowDense: false,
+        densityBias: -5,
+        subdivisionBias: 0.05,
+        templates: [
+          ["I", "vi", "ii", "V"],
+          ["ii", "V", "I", "I"]
+        ],
+        degreeQualities: {
+          "I": ["maj7", "6/9"],
+          "vi": ["m7"],
+          "ii": ["m7"],
+          "V": ["7", "9"]
+        }
+      },
+      swing: {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: false,
+        densityBias: -5,
+        subdivisionBias: 0.1,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj7" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7" },
+            { degree: "IV", quality: "maj7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "V", quality: "9" }
+          ]
+        }
+      },
+      impressionist: {
+        type: "functional",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -5,
+        subdivisionBias: -0.1,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "add9" },
+            { degree: "I", quality: "maj7" },
+            { degree: "bVI", quality: "maj7" }
+          ],
+          predom: [
+            { degree: "IV", quality: "add9" },
+            { degree: "ii", quality: "m7" },
+            { degree: "bII", quality: "maj7" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7sus4" },
+            { degree: "V", quality: "7" }
+          ]
+        }
+      },
+      romantic: {
+        type: "functional",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -10,
+        subdivisionBias: -0.15,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "maj" },
+            { degree: "vi", quality: "m" },
+            { degree: "bIII", quality: "maj" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m" },
+            { degree: "IV", quality: "maj" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "vii", quality: "dim7" }
+          ]
+        }
+      },
+      "modern-classical": {
+        type: "functional",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: 5,
+        subdivisionBias: -0.05,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "add9" },
+            { degree: "I", quality: "sus2" }
+          ],
+          predom: [
+            { degree: "IV", quality: "sus2" },
+            { degree: "ii", quality: "m7" },
+            { degree: "bII", quality: "maj" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7sus4" },
+            { degree: "V", quality: "7" }
+          ]
+        }
+      },
+      folk: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -25,
+        subdivisionBias: -0.35,
+        templates: [
+          ["I", "IV", "V", "I"],
+          ["I", "V", "vi", "IV"],
+          ["I", "IV", "I", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj"],
+          "IV": ["maj"],
+          "V": ["maj"],
+          "vi": ["m"]
+        }
+      },
+      country: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -30,
+        subdivisionBias: -0.35,
+        templates: [
+          ["I", "IV", "V", "I"],
+          ["I", "V", "IV", "I"],
+          ["I", "vi", "IV", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj"],
+          "IV": ["maj"],
+          "V": ["maj"],
+          "vi": ["m"]
+        }
+      },
+      ambient: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -35,
+        subdivisionBias: -0.4,
+        templates: [
+          ["I", "vi", "IV", "I"],
+          ["I", "IV", "I", "I"]
+        ],
+        degreeQualities: {
+          "I": ["maj7", "add9"],
+          "vi": ["m7"],
+          "IV": ["maj7", "add9"]
+        }
+      }
     };
 
     const patternsEvenByDensity = {
@@ -656,14 +1470,14 @@
       let notes = qualities[quality].map(interval => baseRoot + interval);
 
       notes.sort((a, b) => a - b);
-      if (notes.length >= 4) {
+      if (notes.length >= 4 && quality !== "5") {
         const dropIndex = notes.length - 2;
         notes[dropIndex] += 12;
+        if (notes.length >= 5 && rng() < 0.55) {
+          notes[1] += 12;
+        }
+        notes = notes.sort((a, b) => a - b);
       }
-      if (notes.length >= 5 && rng() < 0.55) {
-        notes[1] += 12;
-      }
-      notes = notes.sort((a, b) => a - b);
 
       while (notes[notes.length - 1] > 84) {
         notes[notes.length - 1] -= 12;
@@ -673,62 +1487,138 @@
     }
 
     function chordName(rootIndex, quality) {
-      return `${noteNames[rootIndex]}${quality}`;
+      const label = qualityLabels[quality] ?? quality;
+      return `${noteNames[rootIndex]}${label}`;
     }
 
-    function generateProgression({ bars, key, densityPercent, seed, subdivision, subdivisionDensity }) {
+    function maybeModulateKey(currentKeyIndex, baseKeyIndex, rng, modulationPercent) {
+      const chance = Math.max(0, Math.min(100, modulationPercent)) / 100;
+      if (chance <= 0) return currentKeyIndex;
+      const forceChange = chance >= 1;
+      if (forceChange || rng() < chance) {
+        if (!forceChange && rng() < 0.25) return baseKeyIndex;
+        const steps = [2, 5, 7, 10];
+        let nextIndex = currentKeyIndex;
+        for (let i = 0; i < 6 && nextIndex === currentKeyIndex; i++) {
+          const step = pick(steps, rng) * (rng() < 0.5 ? -1 : 1);
+          nextIndex = (currentKeyIndex + step + 12) % 12;
+        }
+        return nextIndex === currentKeyIndex ? (currentKeyIndex + 7) % 12 : nextIndex;
+      }
+      return currentKeyIndex;
+    }
+
+    function generateBluesProgression({ bars, key, rng, modulationPercent }) {
+      const totalBars = Math.max(4, bars);
+      const keyIndex = noteNames.indexOf(key);
+      const bluesPattern = [
+        "I", "I", "I", "I",
+        "IV", "IV", "I", "I",
+        "V", "IV", "I", "V"
+      ];
+      const chords = [];
+      let currentKeyIndex = keyIndex;
+      for (let bar = 0; bar < totalBars; bar++) {
+        currentKeyIndex = maybeModulateKey(currentKeyIndex, keyIndex, rng, modulationPercent);
+        const degree = bluesPattern[bar % bluesPattern.length];
+        const offset = degreeOffsets[degree] ?? 0;
+        const rootIndex = (currentKeyIndex + offset + 12) % 12;
+        chords.push({
+          name: chordName(rootIndex, "7"),
+          duration: 4,
+          notes: buildChord(rootIndex, "7", rng)
+        });
+      }
+      return chords;
+    }
+
+    function generateProgression({ bars, key, densityPercent, seed, subdivision, subdivisionDensity, genre, modulationPercent }) {
       const rng = makeRng(seed);
       const totalBars = Math.max(4, bars);
       const totalBeats = totalBars * 4;
       const keyIndex = noteNames.indexOf(key);
+      const profile = genreProfiles[genre] || genreProfiles.base;
+
+      if (profile.type === "blues") {
+        return generateBluesProgression({ bars: totalBars, key, rng, modulationPercent });
+      }
+
+      const densityAdjusted = Math.max(0, Math.min(100, densityPercent + (profile.densityBias || 0)));
+      const subdivisionAdjusted = Math.max(0, Math.min(1, subdivisionDensity + (profile.subdivisionBias || 0)));
+      const allowTriplets = profile.allowTriplets !== false;
+      const allowDense = profile.allowDense !== false;
 
       let beatsRemaining = totalBeats;
       let functionState = "predom";
       const chords = [];
+      const template = profile.type === "template" ? pick(profile.templates, rng) : null;
+      let templateIndex = 0;
+      let currentKeyIndex = keyIndex;
 
       for (let bar = 0; bar < totalBars; bar++) {
-        const densityIndex = pickDensityIndex(densityPercent, rng);
+        currentKeyIndex = maybeModulateKey(currentKeyIndex, keyIndex, rng, modulationPercent);
+        const densityIndex = pickDensityIndex(densityAdjusted, rng);
         const evenPatterns = patternsEvenByDensity[densityIndex];
         const tripletPatterns = patternsTripletByDensity[densityIndex];
         let pattern = [4];
-        if (subdivisionDensity > 0) {
-          if (densityPercent >= 95 && rng() < 0.7) {
+        if (subdivisionAdjusted > 0) {
+          if (allowDense && densityAdjusted >= 95 && rng() < 0.7) {
             pattern = pick(densePatterns, rng);
-          } else if (rng() < subdivisionDensity) {
+          } else if (rng() < subdivisionAdjusted) {
             pattern = pick(evenPatterns, rng);
-            if (subdivision === "mixed" && rng() < 0.35) {
+            if (allowTriplets && subdivision === "mixed" && rng() < 0.35) {
               pattern = pick(tripletPatterns, rng);
             }
           } else {
             pattern = pick(simplePatterns, rng);
           }
         }
-        for (let i = 0; i < pattern.length; i++) {
-          const isPhraseEnd = (bar % 4 === 3) && (i === pattern.length - 1);
-          const isPhrasePrep = (bar % 4 === 3) && (i === pattern.length - 2);
 
-          if (isPhraseEnd) {
-            functionState = "tonic";
-          } else if (isPhrasePrep) {
-            functionState = "dominant";
-          } else {
-            if (functionState === "tonic") {
-              functionState = rng() < 0.7 ? "predom" : "dominant";
-            } else if (functionState === "predom") {
-              functionState = rng() < 0.75 ? "dominant" : "predom";
+        for (let i = 0; i < pattern.length; i++) {
+          let degree = "I";
+          let quality = "maj";
+
+          if (profile.type === "template") {
+            degree = template[templateIndex % template.length];
+            templateIndex += 1;
+            const qualityPool = profile.degreeQualities[degree];
+            if (qualityPool && qualityPool.length) {
+              quality = pick(qualityPool, rng);
+            } else if (degree === degree.toLowerCase()) {
+              quality = "m";
             } else {
-              functionState = rng() < 0.7 ? "tonic" : "predom";
+              quality = "maj";
             }
+          } else {
+            const isPhraseEnd = (bar % 4 === 3) && (i === pattern.length - 1);
+            const isPhrasePrep = (bar % 4 === 3) && (i === pattern.length - 2);
+
+            if (isPhraseEnd) {
+              functionState = "tonic";
+            } else if (isPhrasePrep) {
+              functionState = "dominant";
+            } else {
+              if (functionState === "tonic") {
+                functionState = rng() < 0.7 ? "predom" : "dominant";
+              } else if (functionState === "predom") {
+                functionState = rng() < 0.75 ? "dominant" : "predom";
+              } else {
+                functionState = rng() < 0.7 ? "tonic" : "predom";
+              }
+            }
+
+            const choice = pick(profile.functions[functionState], rng);
+            degree = choice.degree;
+            quality = choice.quality;
           }
 
-          const choice = pick(functions[functionState], rng);
-          const offset = degreeOffsets[choice.degree];
-          const rootIndex = (keyIndex + offset + 12) % 12;
-          const notes = buildChord(rootIndex, choice.quality, rng);
+          const offset = degreeOffsets[degree] ?? 0;
+          const rootIndex = (currentKeyIndex + offset + 12) % 12;
+          const notes = buildChord(rootIndex, quality, rng);
           const duration = pattern[i];
 
           chords.push({
-            name: chordName(rootIndex, choice.quality),
+            name: chordName(rootIndex, quality),
             duration,
             notes
           });
@@ -854,10 +1744,12 @@
     }
 
     const keySelect = document.getElementById("keySelect");
+    const genreSelect = document.getElementById("genre");
     const tempoInput = document.getElementById("tempo");
     const tempoReadout = document.getElementById("tempoReadout");
     const barsInput = document.getElementById("bars");
     const densityInput = document.getElementById("density");
+    const modulationInput = document.getElementById("modulation");
     const subdivisionDensityInput = document.getElementById("subdivisionDensity");
     const subdivisionInput = document.getElementById("subdivision");
     const seedInput = document.getElementById("seed");
@@ -869,6 +1761,7 @@
     const helpText = document.getElementById("helpText");
     const barsReadout = document.getElementById("barsReadout");
     const densityReadout = document.getElementById("densityReadout");
+    const modulationReadout = document.getElementById("modulationReadout");
     const subdivisionDensityReadout = document.getElementById("subdivisionDensityReadout");
     const timelineView = document.getElementById("timelineView");
     const ruler = document.getElementById("ruler");
@@ -1063,6 +1956,13 @@
       activeOscillators.clear();
     }
 
+    function restoreMasterGain() {
+      if (audioContext && masterGain) {
+        masterGain.gain.cancelScheduledValues(audioContext.currentTime);
+        masterGain.gain.setValueAtTime(DEFAULT_GAIN, audioContext.currentTime);
+      }
+    }
+
     function startPlayback(startIndex) {
       if (!currentChords.length) return;
       ensureAudio();
@@ -1076,10 +1976,7 @@
       let cursor = 0;
 
       setActiveChord(safeStart);
-      if (masterGain && audioContext) {
-        masterGain.gain.cancelScheduledValues(audioContext.currentTime);
-        masterGain.gain.setValueAtTime(DEFAULT_GAIN, audioContext.currentTime);
-      }
+      restoreMasterGain();
 
       for (let i = safeStart; i < currentChords.length; i++) {
         const chord = currentChords[i];
@@ -1102,6 +1999,7 @@
     function updateReadouts() {
       barsReadout.textContent = `${barsInput.value} bars`;
       densityReadout.textContent = `${densityInput.value}%`;
+      modulationReadout.textContent = `${modulationInput.value}%`;
       subdivisionDensityReadout.textContent = `${subdivisionDensityInput.value}%`;
       tempoReadout.textContent = `${tempoInput.value} BPM`;
     }
@@ -1111,11 +2009,13 @@
       updateReadouts();
       const bars = parseInt(barsInput.value, 10);
       const densityPercent = Math.max(0, Math.min(100, parseInt(densityInput.value, 10) || 0));
+      const modulationPercent = Math.max(0, Math.min(100, parseInt(modulationInput.value, 10) || 0));
       const subdivision = subdivisionInput.value;
       const subdivisionDensity = Math.max(0, Math.min(100, parseInt(subdivisionDensityInput.value, 10) || 0)) / 100;
       const bpm = Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
       const seedRaw = seedInput.value.trim() || `$eed-${Date.now()}`;
       const seedLabel = seedRaw;
+      const genre = genreSelect ? genreSelect.value : "base";
       const keyChoice = keySelect.value;
       let key = keyChoice;
       let keyLabel = keyChoice;
@@ -1125,7 +2025,7 @@
         keyLabel = `random → ${key}`;
       }
 
-      const chords = generateProgression({ bars, key, densityPercent, seed: seedLabel, subdivision, subdivisionDensity });
+      const chords = generateProgression({ bars, key, densityPercent, seed: seedLabel, subdivision, subdivisionDensity, genre, modulationPercent });
       currentChords = chords;
       currentMidi = buildMidi(chords, bpm);
       currentSeed = seedLabel;
@@ -1181,7 +2081,7 @@
       renderProgressionHighlight(currentChordIndex);
       const subdivisionLabel = subdivision === "mixed" ? "even+triplet" : "even";
       const seedDisplay = seedLabel.startsWith("$eed") ? seedLabel : `$eed ${seedLabel}`;
-      footer.textContent = `Key ${keyLabel} | ${bars} bars | ${bpm} BPM | density ${densityPercent}% | ${subdivisionLabel} | subdiv ${Math.round(subdivisionDensity * 100)}% | ${seedDisplay}`;
+      footer.textContent = `Key ${keyLabel} | ${bars} bars | ${bpm} BPM | ${genre} | density ${densityPercent}% | mod ${modulationPercent}% | ${subdivisionLabel} | subdiv ${Math.round(subdivisionDensity * 100)}% | ${seedDisplay}`;
     }
 
     document.getElementById("generate").addEventListener("click", () => {
@@ -1252,9 +2152,11 @@
       "",
       "CONTROLS",
       "- Key center: Choose a root or random.",
+      "- Genre: Select a harmonic style engine.",
       "- Tempo: BPM for playback and MIDI.",
       "- Bars: Length of the progression.",
       "- Harmonic density (%): How busy the harmony feels.",
+      "- Modulation amount (%): Likelihood of key shifts.",
       "- Subdivision density (%): How often bars subdivide.",
       "- Subdivision mode: Even only or even + triplet feel.",
       "- $eed: Paste any text to make a repeatable progression.",
@@ -1287,7 +2189,7 @@
           clearInterval(helpTypeTimer);
           helpTypeTimer = null;
         }
-      }, 6);
+      }, 2);
     }
 
     function openHelp() {
@@ -1325,14 +2227,15 @@
 
     document.addEventListener("keydown", (event) => {
       const tag = (event.target && event.target.tagName) ? event.target.tagName.toLowerCase() : "";
-      if (tag === "input" || tag === "textarea" || tag === "select") return;
       if (!currentChords.length) return;
+      const isCtrl = event.ctrlKey || event.metaKey;
       if (event.key === "Escape" && helpModal.classList.contains("active")) {
         event.preventDefault();
         closeHelp();
-      } else if (event.key === "c" || event.key === "C") {
+      } else if ((event.key === "c" || event.key === "C") && !isCtrl) {
         event.preventDefault();
         render();
+        return;
       } else if (event.key === " ") {
         event.preventDefault();
         if (isPlaying) {
@@ -1342,20 +2245,24 @@
           startPlayback(startIndex);
         }
       } else if (event.key === "ArrowRight") {
+        if (tag === "input" || tag === "textarea" || tag === "select") return;
         event.preventDefault();
         stopPlayback();
         const nextIndex = (currentChordIndex + 1) % currentChords.length;
         setActiveChord(nextIndex);
         ensureAudio();
+        restoreMasterGain();
         const bpm = Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
         const beatSec = 60 / bpm;
         playChordAtTime(currentChords[nextIndex].notes, audioContext.currentTime, currentChords[nextIndex].duration * beatSec);
       } else if (event.key === "ArrowLeft") {
+        if (tag === "input" || tag === "textarea" || tag === "select") return;
         event.preventDefault();
         stopPlayback();
         const prevIndex = Math.max(0, currentChordIndex === -1 ? 0 : currentChordIndex - 1);
         setActiveChord(prevIndex);
         ensureAudio();
+        restoreMasterGain();
         const bpm = Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
         const beatSec = 60 / bpm;
         playChordAtTime(currentChords[prevIndex].notes, audioContext.currentTime, currentChords[prevIndex].duration * beatSec);
@@ -1364,6 +2271,7 @@
 
     barsInput.addEventListener("input", updateReadouts);
     densityInput.addEventListener("input", updateReadouts);
+    modulationInput.addEventListener("input", updateReadouts);
     subdivisionDensityInput.addEventListener("input", updateReadouts);
     tempoInput.addEventListener("input", updateReadouts);
 
