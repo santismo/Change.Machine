@@ -298,6 +298,32 @@
       margin-top: 1px;
     }
 
+    .midi-velocity {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-size: 9px;
+      color: var(--muted);
+      padding: 2px 4px;
+      border: 1px solid rgba(110, 255, 198, 0.2);
+      border-radius: 4px;
+    }
+
+    .midi-on .midi-velocity {
+      display: flex;
+    }
+
+    .midi-velocity input[type="range"] {
+      width: 110px;
+    }
+
+    .midi-velocity-value {
+      color: var(--text);
+      font-size: 10px;
+      min-width: 22px;
+      text-align: right;
+    }
+
     button {
       border: 1px solid rgba(110, 255, 198, 0.5);
       background: linear-gradient(120deg, rgba(7, 32, 20, 0.9), rgba(8, 64, 40, 0.9));
@@ -539,6 +565,11 @@
             <button id="play">Play</button>
             <button id="download" class="secondary">Download .mid</button>
             <button id="midiToggle" class="secondary">MIDI Out</button>
+            <div class="midi-velocity">
+              <span>Vel</span>
+              <input id="midiVelocity" type="range" min="1" max="127" value="96" />
+              <span id="midiVelocityValue" class="midi-velocity-value">96</span>
+            </div>
           </div>
           <h2>Progression</h2>
           <div id="timelineView" class="timeline-view">
@@ -2249,6 +2280,8 @@
     const subdivisionInput = document.getElementById("subdivision");
     const seedInput = document.getElementById("seed");
     const midiToggle = document.getElementById("midiToggle");
+    const midiVelocity = document.getElementById("midiVelocity");
+    const midiVelocityValue = document.getElementById("midiVelocityValue");
     const importSeed = document.getElementById("importSeed");
     const copySeed = document.getElementById("copySeed");
     const randomSeed = document.getElementById("randomSeed");
@@ -2546,11 +2579,18 @@
     let clockSmoothing = null;
     const activeMidiNotes = new Set();
 
+    function getMidiVelocity() {
+      if (!midiVelocity) return 96;
+      const value = Number(midiVelocity.value);
+      if (Number.isNaN(value)) return 96;
+      return Math.max(1, Math.min(127, value));
+    }
+
     function ensureAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         masterGain = audioContext.createGain();
-        masterGain.gain.value = DEFAULT_GAIN;
+        masterGain.gain.value = midiEnabled ? 0 : DEFAULT_GAIN;
         analyser = audioContext.createAnalyser();
         analyser.fftSize = 1024;
         analyser.smoothingTimeConstant = 0.65;
@@ -2638,7 +2678,9 @@
 
     function sendAllNotesOff() {
       if (!midiEnabled || !midiOutput) return;
+      midiOutput.send([0xB0, 64, 0]);
       midiOutput.send([0xB0, 123, 0]);
+      midiOutput.send([0xB0, 120, 0]);
       activeMidiNotes.clear();
     }
 
@@ -2646,7 +2688,8 @@
     function scheduleMidiChord(notes, startMs, durationMs) {
       if (!midiOutput) return;
       const onId = setTimeout(() => {
-        notes.forEach(note => sendMidiNoteOn(note, 96));
+        const velocity = getMidiVelocity();
+        notes.forEach(note => sendMidiNoteOn(note, velocity));
       }, Math.max(0, startMs));
       const offId = setTimeout(() => {
         notes.forEach(note => sendMidiNoteOff(note));
@@ -2790,7 +2833,7 @@
     function restoreMasterGain() {
       if (audioContext && masterGain) {
         masterGain.gain.cancelScheduledValues(audioContext.currentTime);
-        masterGain.gain.setValueAtTime(DEFAULT_GAIN, audioContext.currentTime);
+        masterGain.gain.setValueAtTime(midiEnabled ? 0 : DEFAULT_GAIN, audioContext.currentTime);
       }
     }
 
@@ -3147,7 +3190,8 @@
         const beatSec = 60 / bpm;
         playChordAtTime(currentChords[nextIndex].notes, audioContext.currentTime, currentChords[nextIndex].duration * beatSec);
         if (midiEnabled) {
-          currentChords[nextIndex].notes.forEach(note => sendMidiNoteOn(note, 96));
+          const velocity = getMidiVelocity();
+          currentChords[nextIndex].notes.forEach(note => sendMidiNoteOn(note, velocity));
           const offId = setTimeout(() => {
             currentChords[nextIndex].notes.forEach(note => sendMidiNoteOff(note));
           }, currentChords[nextIndex].duration * beatSec * 1000);
@@ -3166,7 +3210,8 @@
         const beatSec = 60 / bpm;
         playChordAtTime(currentChords[prevIndex].notes, audioContext.currentTime, currentChords[prevIndex].duration * beatSec);
         if (midiEnabled) {
-          currentChords[prevIndex].notes.forEach(note => sendMidiNoteOn(note, 96));
+          const velocity = getMidiVelocity();
+          currentChords[prevIndex].notes.forEach(note => sendMidiNoteOn(note, velocity));
           const offId = setTimeout(() => {
             currentChords[prevIndex].notes.forEach(note => sendMidiNoteOff(note));
           }, currentChords[prevIndex].duration * beatSec * 1000);
@@ -3236,15 +3281,21 @@
         if (midiEnabled) {
           tempoInput.disabled = true;
           tempoReadout.textContent = "WAITING FOR CLOCK";
+          if (midiVelocity) {
+            midiVelocity.disabled = false;
+          }
+          document.body.classList.add("midi-on");
           await ensureMidi();
           if (!midiAccess) {
             midiEnabled = false;
             tempoInput.disabled = false;
             updateReadouts();
             midiToggle.textContent = "MIDI Out";
+            document.body.classList.remove("midi-on");
             return;
           }
           midiToggle.textContent = midiOutput ? "MIDI Out: On" : "MIDI Out: No device";
+          restoreMasterGain();
         } else {
           sendAllNotesOff();
           midiOutput = null;
@@ -3258,8 +3309,21 @@
           tempoInput.disabled = false;
           updateReadouts();
           midiToggle.textContent = "MIDI Out";
+          restoreMasterGain();
+          if (midiVelocity) {
+            midiVelocity.disabled = true;
+          }
+          document.body.classList.remove("midi-on");
         }
       });
+    }
+
+    if (midiVelocity && midiVelocityValue) {
+      midiVelocityValue.textContent = midiVelocity.value;
+      midiVelocity.addEventListener("input", () => {
+        midiVelocityValue.textContent = midiVelocity.value;
+      });
+      midiVelocity.disabled = true;
     }
 
     render();
