@@ -138,8 +138,8 @@
 
     .grid {
       display: grid;
-      grid-template-columns: minmax(250px, 1fr) 2fr;
-      gap: 20px;
+      grid-template-columns: minmax(210px, 0.9fr) 2.1fr;
+      gap: 16px;
     }
 
     .panel {
@@ -244,26 +244,35 @@
 
     .controls {
       display: grid;
-      gap: 8px;
+      gap: 6px;
     }
 
     label {
       display: grid;
-      gap: 4px;
-      font-size: 10px;
+      gap: 3px;
+      font-size: 9px;
       color: var(--muted);
+    }
+
+    .genre-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .genre-row select {
+      flex: 1;
     }
 
     input, select, button {
       font-family: inherit;
-      font-size: 13px;
+      font-size: 12px;
     }
 
     input[type="range"], input[type="number"], input[type="text"], select {
       background: #040b08;
       color: var(--text);
       border: 1px solid rgba(110, 255, 198, 0.3);
-      padding: 4px 6px;
+      padding: 3px 5px;
       border-radius: 4px;
       outline: none;
     }
@@ -275,15 +284,15 @@
     .button-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 2px;
+      gap: 5px;
+      margin-top: 1px;
     }
 
     button {
       border: 1px solid rgba(110, 255, 198, 0.5);
       background: linear-gradient(120deg, rgba(7, 32, 20, 0.9), rgba(8, 64, 40, 0.9));
       color: var(--text);
-      padding: 6px 10px;
+      padding: 5px 8px;
       cursor: pointer;
       text-transform: uppercase;
       letter-spacing: 0.1em;
@@ -465,43 +474,10 @@
             </label>
             <label>
               Genre
-              <select id="genre">
-                <option value="base">Base</option>
-                <option value="jazz">Jazz</option>
-                <option value="baroque">Baroque</option>
-                <option value="classical">Classical</option>
-                <option value="neoclassical">Neoclassical</option>
-                <option value="rock">Rock</option>
-                <option value="metal">Metal</option>
-                <option value="punk">Punk</option>
-                <option value="pop">Pop</option>
-                <option value="blues">Blues</option>
-                <option value="rnb">R&amp;B</option>
-                <option value="soul">Soul</option>
-                <option value="neo-soul">Neo-soul</option>
-                <option value="funk">Funk</option>
-                <option value="reggae">Reggae</option>
-                <option value="calypso">Calypso</option>
-                <option value="prog">Prog</option>
-                <option value="americana">Americana</option>
-                <option value="bebop">Bebop</option>
-                <option value="hard-bop">Hard-bop</option>
-                <option value="cool-jazz">Cool jazz</option>
-                <option value="modal-jazz">Modal jazz</option>
-                <option value="fusion">Fusion</option>
-                <option value="lofi">Lo-fi</option>
-                <option value="gospel">Gospel</option>
-                <option value="bossa">Bossa nova</option>
-                <option value="latin-jazz">Latin jazz</option>
-                <option value="samba">Samba</option>
-                <option value="swing">Swing</option>
-                <option value="impressionist">Impressionist</option>
-                <option value="romantic">Romantic</option>
-                <option value="modern-classical">Modern classical</option>
-                <option value="folk">Folk</option>
-                <option value="country">Country</option>
-                <option value="ambient">Ambient</option>
-              </select>
+              <div class="genre-row">
+                <select id="genreMain"></select>
+                <select id="genreSub"></select>
+              </div>
             </label>
             <label>
               Tempo (BPM)
@@ -542,6 +518,7 @@
             <div class="button-row">
               <button id="importSeed" class="secondary">Import $eed</button>
               <button id="copySeed" class="secondary">Copy $eed</button>
+              <button id="randomSeed" class="secondary">Random $eed</button>
             </div>
           </div>
         </section>
@@ -617,6 +594,7 @@
       "sus4": [0, 5, 7],
       "add9": [0, 4, 7, 14],
       "6": [0, 4, 7, 9],
+      "m6": [0, 3, 7, 9],
       "6/9": [0, 4, 7, 9, 14],
       "7": [0, 4, 7, 10],
       "7sus4": [0, 5, 7, 10],
@@ -641,6 +619,7 @@
       "sus4": "sus4",
       "add9": "add9",
       "6": "6",
+      "m6": "m6",
       "6/9": "6/9",
       "7": "7",
       "7sus4": "7sus4",
@@ -856,12 +835,175 @@
           "ii": ["m"]
         }
       },
+      "synth-pop": {
+        type: "template",
+        allowTriplets: false,
+        allowDense: true,
+        densityBias: 5,
+        subdivisionBias: -0.05,
+        templates: [
+          ["I", "V", "vi", "IV"],
+          ["vi", "IV", "I", "V"],
+          ["I", "V", "IV", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "add9", "sus2"],
+          "V": ["maj", "sus4"],
+          "vi": ["m", "m7"],
+          "IV": ["maj", "add9"]
+        }
+      },
+      "indie-pop": {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -5,
+        subdivisionBias: -0.1,
+        templates: [
+          ["I", "V", "vi", "IV"],
+          ["I", "IV", "vi", "V"],
+          ["vi", "IV", "I", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "add9", "maj7"],
+          "V": ["maj", "sus4"],
+          "vi": ["m", "m7"],
+          "IV": ["maj", "add9", "maj7"]
+        }
+      },
+      "dream-pop": {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -15,
+        subdivisionBias: -0.2,
+        templates: [
+          ["I", "vi", "IV", "I"],
+          ["I", "IV", "I", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj7", "add9"],
+          "vi": ["m7"],
+          "IV": ["maj7", "add9"],
+          "V": ["sus4", "maj"]
+        }
+      },
       blues: {
         type: "blues",
         allowTriplets: true,
-        allowDense: false,
-        densityBias: -40,
-        subdivisionBias: -0.4
+        allowDense: true,
+        densityBias: 5,
+        subdivisionBias: 0.05,
+        bluesBars: [
+          { base: "I", passing: ["VI", "ii"] },
+          { base: "IV", passing: ["I"] },
+          { base: "I", passing: ["VI"] },
+          { base: "I", passing: ["#IV", "IV"] },
+          { base: "IV", passing: ["IV"] },
+          { base: "IV", passing: ["IV"] },
+          { base: "I", passing: ["VI"] },
+          { base: "I", passing: ["VI", "ii"] },
+          { base: "V", passing: ["IV", "ii"] },
+          { base: "IV", passing: ["I", "ii"] },
+          { base: "I", passing: ["VI", "ii"] },
+          { base: "V", passing: ["I", "bII"] }
+        ],
+        bluesQualityMap: {
+          "I": ["7", "9"],
+          "IV": ["7", "9"],
+          "V": ["7", "9", "13"],
+          "VI": ["7"],
+          "ii": ["m7"],
+          "#IV": ["dim7"],
+          "bII": ["7alt"]
+        }
+      },
+      "chicago-blues": {
+        type: "blues",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: 0.1,
+        bluesBars: [
+          { base: "I", passing: ["IV", "VI"] },
+          { base: "IV", passing: ["I"] },
+          { base: "I", passing: ["VI"] },
+          { base: "I", passing: ["#IV", "IV"] },
+          { base: "IV", passing: ["IV"] },
+          { base: "IV", passing: ["IV", "I"] },
+          { base: "I", passing: ["VI"] },
+          { base: "I", passing: ["VI", "ii"] },
+          { base: "V", passing: ["IV", "ii"] },
+          { base: "IV", passing: ["I", "ii"] },
+          { base: "I", passing: ["VI", "ii"] },
+          { base: "V", passing: ["I", "bII"] }
+        ],
+        bluesQualityMap: {
+          "I": ["9", "13"],
+          "IV": ["9"],
+          "V": ["9", "13"],
+          "VI": ["7"],
+          "ii": ["m7"],
+          "#IV": ["dim7"],
+          "bII": ["7alt"]
+        }
+      },
+      "delta-blues": {
+        type: "blues",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 0,
+        subdivisionBias: 0,
+        bluesBars: [
+          { base: "I", passing: ["VI"] },
+          { base: "I", passing: ["IV"] },
+          { base: "I", passing: ["VI"] },
+          { base: "I", passing: ["#IV", "IV"] },
+          { base: "IV", passing: ["IV"] },
+          { base: "IV", passing: ["I"] },
+          { base: "I", passing: ["VI"] },
+          { base: "I", passing: ["VI"] },
+          { base: "V", passing: ["bVII"] },
+          { base: "bVII", passing: ["IV"] },
+          { base: "I", passing: ["VI"] },
+          { base: "V", passing: ["I"] }
+        ],
+        bluesQualityMap: {
+          "I": ["7"],
+          "IV": ["7"],
+          "V": ["7", "9"],
+          "VI": ["7"],
+          "bVII": ["7"],
+          "#IV": ["dim7"]
+        }
+      },
+      "minor-blues": {
+        type: "blues",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 5,
+        subdivisionBias: 0.05,
+        bluesBars: [
+          { base: "i", passing: ["bVI"] },
+          { base: "iv", passing: ["i"] },
+          { base: "i", passing: ["bVI"] },
+          { base: "i", passing: ["#IV", "iv"] },
+          { base: "iv", passing: ["iv"] },
+          { base: "iv", passing: ["i"] },
+          { base: "i", passing: ["bVI"] },
+          { base: "i", passing: ["bVI"] },
+          { base: "V", passing: ["iv"] },
+          { base: "iv", passing: ["i"] },
+          { base: "i", passing: ["bVI"] },
+          { base: "V", passing: ["i"] }
+        ],
+        bluesQualityMap: {
+          "i": ["m7", "m9"],
+          "iv": ["m7"],
+          "V": ["7", "9"],
+          "bVI": ["maj7"],
+          "#IV": ["dim7"]
+        }
       },
       rnb: {
         type: "functional",
@@ -999,6 +1141,40 @@
           "vi": ["m"],
           "ii": ["m"],
           "IV": ["maj"],
+          "bVII": ["maj"]
+        }
+      },
+      ska: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -15,
+        subdivisionBias: -0.2,
+        templates: [
+          ["I", "IV", "V", "IV"],
+          ["I", "bVII", "IV", "V"],
+          ["I", "V", "IV", "I"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "6"],
+          "IV": ["maj", "6"],
+          "V": ["7", "maj"],
+          "bVII": ["maj"]
+        }
+      },
+      dancehall: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -10,
+        subdivisionBias: -0.15,
+        templates: [
+          ["i", "bVII", "bVI", "bVII"],
+          ["i", "bVI", "bVII", "i"]
+        ],
+        degreeQualities: {
+          "i": ["m", "m7"],
+          "bVI": ["maj"],
           "bVII": ["maj"]
         }
       },
@@ -1378,6 +1554,238 @@
           "vi": ["m"]
         }
       },
+      "gypsy-jazz": {
+        type: "functional",
+        allowTriplets: true,
+        allowDense: true,
+        densityBias: 15,
+        subdivisionBias: 0.1,
+        functions: {
+          tonic: [
+            { degree: "I", quality: "6" },
+            { degree: "I", quality: "maj7" },
+            { degree: "vi", quality: "m6" }
+          ],
+          predom: [
+            { degree: "ii", quality: "m7b5" },
+            { degree: "iv", quality: "m6" }
+          ],
+          dominant: [
+            { degree: "V", quality: "7" },
+            { degree: "V", quality: "9" },
+            { degree: "#IV", quality: "dim7" }
+          ]
+        }
+      },
+      "hip-hop": {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -10,
+        subdivisionBias: -0.2,
+        templates: [
+          ["i", "bVII", "bVI", "bVII"],
+          ["i", "bIII", "bVII", "bVI"],
+          ["i", "bVI", "bVII", "i"]
+        ],
+        degreeQualities: {
+          "i": ["m7", "m9"],
+          "bIII": ["maj7"],
+          "bVI": ["maj7"],
+          "bVII": ["7"]
+        }
+      },
+      "boom-bap": {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -5,
+        subdivisionBias: -0.15,
+        templates: [
+          ["i", "bVII", "bVI", "bVII"],
+          ["i", "iv", "bVII", "i"]
+        ],
+        degreeQualities: {
+          "i": ["m7", "m9"],
+          "iv": ["m7"],
+          "bVI": ["maj7"],
+          "bVII": ["7"]
+        }
+      },
+      trap: {
+        type: "template",
+        allowTriplets: true,
+        allowDense: false,
+        densityBias: -10,
+        subdivisionBias: -0.1,
+        templates: [
+          ["i", "bVI", "bVII", "i"],
+          ["i", "bVII", "bVI", "i"]
+        ],
+        degreeQualities: {
+          "i": ["m9", "m7"],
+          "bVI": ["maj7"],
+          "bVII": ["7"]
+        }
+      },
+      "lofi-hiphop": {
+        type: "functional",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -10,
+        subdivisionBias: -0.2,
+        functions: {
+          tonic: [
+            { degree: "i", quality: "m7" },
+            { degree: "i", quality: "m9" }
+          ],
+          predom: [
+            { degree: "iv", quality: "m7" },
+            { degree: "bVI", quality: "maj7" }
+          ],
+          dominant: [
+            { degree: "bVII", quality: "7" },
+            { degree: "V", quality: "7" }
+          ]
+        }
+      },
+      edm: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: true,
+        densityBias: 5,
+        subdivisionBias: -0.05,
+        templates: [
+          ["I", "vi", "IV", "V"],
+          ["vi", "IV", "I", "V"],
+          ["I", "V", "vi", "IV"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "add9"],
+          "vi": ["m", "m7"],
+          "IV": ["maj", "add9"],
+          "V": ["maj", "sus4"]
+        }
+      },
+      house: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: 0.05,
+        templates: [
+          ["I", "vi", "IV", "V"],
+          ["ii", "V", "I", "I"]
+        ],
+        degreeQualities: {
+          "I": ["maj7", "6/9"],
+          "vi": ["m7"],
+          "IV": ["maj7"],
+          "V": ["7", "9"],
+          "ii": ["m7"]
+        }
+      },
+      downtempo: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -15,
+        subdivisionBias: -0.25,
+        templates: [
+          ["I", "vi", "IV", "I"],
+          ["vi", "IV", "I", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj7", "add9"],
+          "vi": ["m7"],
+          "IV": ["maj7", "add9"],
+          "V": ["sus4", "maj"]
+        }
+      },
+      trance: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: true,
+        densityBias: 10,
+        subdivisionBias: 0.1,
+        templates: [
+          ["I", "V", "vi", "IV"],
+          ["vi", "IV", "I", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "add9"],
+          "V": ["maj", "sus4"],
+          "vi": ["m", "m7"],
+          "IV": ["maj", "add9"]
+        }
+      },
+      dubstep: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: true,
+        densityBias: 15,
+        subdivisionBias: -0.05,
+        templates: [
+          ["i", "bVI", "bVII", "i"],
+          ["i", "bVII", "bVI", "i"]
+        ],
+        degreeQualities: {
+          "i": ["m7", "m9"],
+          "bVI": ["maj"],
+          "bVII": ["maj"]
+        }
+      },
+      indie: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -5,
+        subdivisionBias: -0.1,
+        templates: [
+          ["I", "V", "vi", "IV"],
+          ["I", "IV", "vi", "V"],
+          ["vi", "IV", "I", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj", "add9"],
+          "V": ["maj", "sus4"],
+          "vi": ["m", "m7"],
+          "IV": ["maj", "add9"]
+        }
+      },
+      "post-rock": {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -20,
+        subdivisionBias: -0.25,
+        templates: [
+          ["I", "V", "vi", "IV"],
+          ["I", "IV", "I", "V"]
+        ],
+        degreeQualities: {
+          "I": ["maj7", "add9"],
+          "V": ["maj", "sus4"],
+          "vi": ["m7"],
+          "IV": ["maj7", "add9"]
+        }
+      },
+      minimalism: {
+        type: "template",
+        allowTriplets: false,
+        allowDense: false,
+        densityBias: -35,
+        subdivisionBias: -0.45,
+        templates: [
+          ["I", "I", "IV", "I"],
+          ["I", "V", "I", "I"]
+        ],
+        degreeQualities: {
+          "I": ["add9", "sus2"],
+          "IV": ["add9", "sus2"],
+          "V": ["sus4", "maj"]
+        }
+      },
       ambient: {
         type: "template",
         allowTriplets: false,
@@ -1426,6 +1834,33 @@
       const frac = scaled - base;
       const index = rng() < frac ? base + 1 : base;
       return Math.max(1, Math.min(5, index + 1));
+    }
+
+    function chooseSubdivisionPattern({
+      densityAdjusted,
+      subdivisionAdjusted,
+      allowTriplets,
+      allowDense,
+      subdivisionMode,
+      rng
+    }) {
+      const densityIndex = pickDensityIndex(densityAdjusted, rng);
+      const evenPatterns = patternsEvenByDensity[densityIndex];
+      const tripletPatterns = patternsTripletByDensity[densityIndex];
+      let pattern = [4];
+      if (subdivisionAdjusted > 0) {
+        if (allowDense && densityAdjusted >= 90 && rng() < 0.7) {
+          pattern = pick(densePatterns, rng);
+        } else if (rng() < subdivisionAdjusted) {
+          pattern = pick(evenPatterns, rng);
+          if (allowTriplets && subdivisionMode === "mixed" && rng() < 0.35) {
+            pattern = pick(tripletPatterns, rng);
+          }
+        } else {
+          pattern = pick(simplePatterns, rng);
+        }
+      }
+      return pattern;
     }
 
     function xmur3(str) {
@@ -1508,26 +1943,71 @@
       return currentKeyIndex;
     }
 
-    function generateBluesProgression({ bars, key, rng, modulationPercent }) {
+    function pickBluesQuality(degree, profile, rng) {
+      if (profile && profile.bluesQualityMap && profile.bluesQualityMap[degree]) {
+        return pick(profile.bluesQualityMap[degree], rng);
+      }
+      return profile && profile.bluesQuality ? profile.bluesQuality : "7";
+    }
+
+    function generateBluesProgression({
+      bars,
+      key,
+      rng,
+      modulationPercent,
+      densityAdjusted,
+      subdivisionAdjusted,
+      allowTriplets,
+      allowDense,
+      subdivisionMode,
+      profile
+    }) {
       const totalBars = Math.max(4, bars);
       const keyIndex = noteNames.indexOf(key);
-      const bluesPattern = [
-        "I", "I", "I", "I",
-        "IV", "IV", "I", "I",
-        "V", "IV", "I", "V"
+      const bluesBars = profile && profile.bluesBars ? profile.bluesBars : [
+        { base: "I", passing: [] },
+        { base: "I", passing: [] },
+        { base: "I", passing: [] },
+        { base: "I", passing: [] },
+        { base: "IV", passing: [] },
+        { base: "IV", passing: [] },
+        { base: "I", passing: [] },
+        { base: "I", passing: [] },
+        { base: "V", passing: [] },
+        { base: "IV", passing: [] },
+        { base: "I", passing: [] },
+        { base: "V", passing: [] }
       ];
       const chords = [];
       let currentKeyIndex = keyIndex;
       for (let bar = 0; bar < totalBars; bar++) {
         currentKeyIndex = maybeModulateKey(currentKeyIndex, keyIndex, rng, modulationPercent);
-        const degree = bluesPattern[bar % bluesPattern.length];
-        const offset = degreeOffsets[degree] ?? 0;
-        const rootIndex = (currentKeyIndex + offset + 12) % 12;
-        chords.push({
-          name: chordName(rootIndex, "7"),
-          duration: 4,
-          notes: buildChord(rootIndex, "7", rng)
+        const barDef = bluesBars[bar % bluesBars.length];
+        const baseDegree = typeof barDef === "string" ? barDef : barDef.base;
+        const passing = typeof barDef === "string" ? [] : (barDef.passing || []);
+        const pattern = chooseSubdivisionPattern({
+          densityAdjusted,
+          subdivisionAdjusted,
+          allowTriplets,
+          allowDense,
+          subdivisionMode,
+          rng
         });
+
+        for (let i = 0; i < pattern.length; i++) {
+          let degree = baseDegree;
+          if (i > 0 && passing.length) {
+            degree = pick(passing, rng);
+          }
+          const offset = degreeOffsets[degree] ?? 0;
+          const rootIndex = (currentKeyIndex + offset + 12) % 12;
+          const quality = pickBluesQuality(degree, profile, rng);
+          chords.push({
+            name: chordName(rootIndex, quality),
+            duration: pattern[i],
+            notes: buildChord(rootIndex, quality, rng)
+          });
+        }
       }
       return chords;
     }
@@ -1540,7 +2020,18 @@
       const profile = genreProfiles[genre] || genreProfiles.base;
 
       if (profile.type === "blues") {
-        return generateBluesProgression({ bars: totalBars, key, rng, modulationPercent });
+        return generateBluesProgression({
+          bars: totalBars,
+          key,
+          rng,
+          modulationPercent,
+          densityAdjusted: Math.max(0, Math.min(100, densityPercent + (profile.densityBias || 0))),
+          subdivisionAdjusted: Math.max(0, Math.min(1, subdivisionDensity + (profile.subdivisionBias || 0))),
+          allowTriplets: profile.allowTriplets !== false,
+          allowDense: profile.allowDense !== false,
+          subdivisionMode: subdivision,
+          profile
+        });
       }
 
       const densityAdjusted = Math.max(0, Math.min(100, densityPercent + (profile.densityBias || 0)));
@@ -1557,22 +2048,14 @@
 
       for (let bar = 0; bar < totalBars; bar++) {
         currentKeyIndex = maybeModulateKey(currentKeyIndex, keyIndex, rng, modulationPercent);
-        const densityIndex = pickDensityIndex(densityAdjusted, rng);
-        const evenPatterns = patternsEvenByDensity[densityIndex];
-        const tripletPatterns = patternsTripletByDensity[densityIndex];
-        let pattern = [4];
-        if (subdivisionAdjusted > 0) {
-          if (allowDense && densityAdjusted >= 95 && rng() < 0.7) {
-            pattern = pick(densePatterns, rng);
-          } else if (rng() < subdivisionAdjusted) {
-            pattern = pick(evenPatterns, rng);
-            if (allowTriplets && subdivision === "mixed" && rng() < 0.35) {
-              pattern = pick(tripletPatterns, rng);
-            }
-          } else {
-            pattern = pick(simplePatterns, rng);
-          }
-        }
+        const pattern = chooseSubdivisionPattern({
+          densityAdjusted,
+          subdivisionAdjusted,
+          allowTriplets,
+          allowDense,
+          subdivisionMode: subdivision,
+          rng
+        });
 
         for (let i = 0; i < pattern.length; i++) {
           let degree = "I";
@@ -1744,7 +2227,8 @@
     }
 
     const keySelect = document.getElementById("keySelect");
-    const genreSelect = document.getElementById("genre");
+    const genreMain = document.getElementById("genreMain");
+    const genreSub = document.getElementById("genreSub");
     const tempoInput = document.getElementById("tempo");
     const tempoReadout = document.getElementById("tempoReadout");
     const barsInput = document.getElementById("bars");
@@ -1755,6 +2239,7 @@
     const seedInput = document.getElementById("seed");
     const importSeed = document.getElementById("importSeed");
     const copySeed = document.getElementById("copySeed");
+    const randomSeed = document.getElementById("randomSeed");
     const helpButton = document.getElementById("helpButton");
     const helpModal = document.getElementById("helpModal");
     const helpClose = document.getElementById("helpClose");
@@ -1787,6 +2272,156 @@
     });
     keySelect.value = "random";
 
+    const genreCatalog = {
+      core: {
+        label: "Core",
+        sub: {
+          base: "Base",
+          jazz: "Jazz",
+          lofi: "Lo-fi",
+          ambient: "Ambient"
+        }
+      },
+      jazz: {
+        label: "Jazz",
+        sub: {
+          jazz: "Jazz",
+          bebop: "Bebop",
+          "hard-bop": "Hard-bop",
+          "cool-jazz": "Cool jazz",
+          "modal-jazz": "Modal jazz",
+          fusion: "Fusion",
+          swing: "Swing",
+          lofi: "Lo-fi",
+          bossa: "Bossa nova",
+          "latin-jazz": "Latin jazz",
+          samba: "Samba",
+          "gypsy-jazz": "Gypsy (manouche)"
+        }
+      },
+      classical: {
+        label: "Classical",
+        sub: {
+          baroque: "Baroque",
+          classical: "Classical",
+          romantic: "Romantic",
+          impressionist: "Impressionist",
+          "modern-classical": "Modern classical",
+          neoclassical: "Neoclassical",
+          minimalism: "Minimalism"
+        }
+      },
+      rock: {
+        label: "Rock",
+        sub: {
+          rock: "Rock",
+          metal: "Metal",
+          punk: "Punk",
+          prog: "Prog",
+          "post-rock": "Post-rock",
+          indie: "Indie"
+        }
+      },
+      soul: {
+        label: "Soul / R&B",
+        sub: {
+          rnb: "R&B",
+          soul: "Soul",
+          "neo-soul": "Neo-soul",
+          funk: "Funk",
+          gospel: "Gospel"
+        }
+      },
+      pop: {
+        label: "Pop",
+        sub: {
+          pop: "Pop",
+          "synth-pop": "Synth-pop",
+          "indie-pop": "Indie pop",
+          "dream-pop": "Dream pop"
+        }
+      },
+      blues: {
+        label: "Blues",
+        sub: {
+          blues: "Blues",
+          "chicago-blues": "Chicago blues",
+          "delta-blues": "Delta blues",
+          "minor-blues": "Minor blues"
+        }
+      },
+      caribbean: {
+        label: "Caribbean",
+        sub: {
+          reggae: "Reggae",
+          calypso: "Calypso",
+          ska: "Ska",
+          dancehall: "Dancehall"
+        }
+      },
+      folk: {
+        label: "Folk / Americana",
+        sub: {
+          folk: "Folk",
+          americana: "Americana",
+          country: "Country"
+        }
+      },
+      electronic: {
+        label: "Electronic",
+        sub: {
+          edm: "EDM",
+          house: "House",
+          downtempo: "Downtempo",
+          trance: "Trance",
+          dubstep: "Dubstep"
+        }
+      },
+      hiphop: {
+        label: "Hip-hop",
+        sub: {
+          "hip-hop": "Hip-hop",
+          "boom-bap": "Boom bap",
+          trap: "Trap",
+          "lofi-hiphop": "Lo-fi hip-hop"
+        }
+      }
+    };
+
+    function populateGenreSelects(preferredMain, preferredSub) {
+      if (!genreMain || !genreSub) return;
+      genreMain.innerHTML = "";
+      Object.keys(genreCatalog).forEach(key => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = genreCatalog[key].label;
+        genreMain.appendChild(option);
+      });
+      const mainValue = preferredMain && genreCatalog[preferredMain] ? preferredMain : "core";
+      genreMain.value = mainValue;
+      populateSubgenres(mainValue, preferredSub || "base");
+    }
+
+    function populateSubgenres(mainKey, preferredSub) {
+      if (!genreSub) return;
+      const group = genreCatalog[mainKey] || genreCatalog.core;
+      genreSub.innerHTML = "";
+      const keys = Object.keys(group.sub);
+      keys.forEach(key => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = group.sub[key];
+        genreSub.appendChild(option);
+      });
+      if (preferredSub && group.sub[preferredSub]) {
+        genreSub.value = preferredSub;
+      } else {
+        genreSub.value = keys[0];
+      }
+    }
+
+    populateGenreSelects("core", "base");
+
     let currentMidi = null;
     let midiBlobUrl = null;
     let currentChords = [];
@@ -1796,6 +2431,7 @@
     let currentChordIndex = -1;
     let currentFileName = "change.machine.mid";
     let currentSeed = "";
+    let seedIsRandom = false;
     let isPlaying = false;
     let playTimers = [];
     let audioContext = null;
@@ -2015,7 +2651,10 @@
       const bpm = Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
       const seedRaw = seedInput.value.trim() || `$eed-${Date.now()}`;
       const seedLabel = seedRaw;
-      const genre = genreSelect ? genreSelect.value : "base";
+      const genre = genreSub ? genreSub.value : "base";
+      const genreLabel = (genreMain && genreSub && genreCatalog[genreMain.value] && genreCatalog[genreMain.value].sub[genreSub.value])
+        ? genreCatalog[genreMain.value].sub[genreSub.value]
+        : genre;
       const keyChoice = keySelect.value;
       let key = keyChoice;
       let keyLabel = keyChoice;
@@ -2081,10 +2720,17 @@
       renderProgressionHighlight(currentChordIndex);
       const subdivisionLabel = subdivision === "mixed" ? "even+triplet" : "even";
       const seedDisplay = seedLabel.startsWith("$eed") ? seedLabel : `$eed ${seedLabel}`;
-      footer.textContent = `Key ${keyLabel} | ${bars} bars | ${bpm} BPM | ${genre} | density ${densityPercent}% | mod ${modulationPercent}% | ${subdivisionLabel} | subdiv ${Math.round(subdivisionDensity * 100)}% | ${seedDisplay}`;
+      footer.textContent = `Key ${keyLabel} | ${bars} bars | ${bpm} BPM | ${genreLabel} | density ${densityPercent}% | mod ${modulationPercent}% | ${subdivisionLabel} | subdiv ${Math.round(subdivisionDensity * 100)}% | ${seedDisplay}`;
+    }
+
+    function applyRandomSeedIfNeeded() {
+      if (!seedIsRandom) return;
+      const rand = Math.random().toString(36).slice(2, 8);
+      seedInput.value = `$eed-${rand}`;
     }
 
     document.getElementById("generate").addEventListener("click", () => {
+      applyRandomSeedIfNeeded();
       render();
     });
 
@@ -2119,6 +2765,7 @@
     importSeed.addEventListener("click", () => {
       const trimmed = seedInput.value.trim();
       if (!trimmed) return;
+      seedIsRandom = false;
       render();
     });
 
@@ -2126,9 +2773,14 @@
       if (event.key === "Enter") {
         event.preventDefault();
         if (seedInput.value.trim()) {
+          seedIsRandom = false;
           render();
         }
       }
+    });
+
+    seedInput.addEventListener("input", () => {
+      seedIsRandom = false;
     });
 
     copySeed.addEventListener("click", async () => {
@@ -2147,12 +2799,33 @@
       }
     });
 
+    randomSeed.addEventListener("click", () => {
+      const rand = Math.random().toString(36).slice(2, 8);
+      seedInput.value = `$eed-${rand}`;
+      seedIsRandom = true;
+      if (genreMain && genreSub) {
+        const mainKeys = Object.keys(genreCatalog);
+        const mainPick = mainKeys[Math.floor(Math.random() * mainKeys.length)];
+        genreMain.value = mainPick;
+        populateSubgenres(mainPick);
+        const subKeys = Object.keys(genreCatalog[mainPick].sub);
+        const subPick = subKeys[Math.floor(Math.random() * subKeys.length)];
+        genreSub.value = subPick;
+      }
+      if (densityInput) densityInput.value = String(Math.floor(Math.random() * 101));
+      if (subdivisionDensityInput) subdivisionDensityInput.value = String(Math.floor(Math.random() * 101));
+      if (modulationInput) modulationInput.value = String(Math.floor(Math.random() * 101));
+      if (barsInput) barsInput.value = String(4 + Math.floor(Math.random() * 29));
+      if (tempoInput) tempoInput.value = String(60 + Math.floor(Math.random() * 141));
+      render();
+    });
+
     const helpContent = [
       "SYSTEM: Generates chord progressions and exports MIDI blocks.",
       "",
       "CONTROLS",
       "- Key center: Choose a root or random.",
-      "- Genre: Select a harmonic style engine.",
+      "- Genre + Subgenre: Pick a main style and a specific variant.",
       "- Tempo: BPM for playback and MIDI.",
       "- Bars: Length of the progression.",
       "- Harmonic density (%): How busy the harmony feels.",
@@ -2165,11 +2838,13 @@
       "- ¢hange: Generate a new progression.",
       "- Play: Listen with a sine synth (loops).",
       "- Download .mid: Save the MIDI file.",
-      "- Import $eed: Loads the current $eed value.",
-      "- Copy $eed / Copy progression: Clipboard helpers.",
+      "- Import $eed: Load the current $eed value.",
+      "- Copy $eed: Copy the current $eed.",
+      "- Random $eed: Randomizes $eed and settings.",
+      "- Copy progression: Copy chord text.",
       "",
       "HOTKEYS",
-      "- Space: Play/Stop.",
+      "- Space: Play/Stop (global).",
       "- Left/Right: Step through chords.",
       "- C: ¢hange (new progression).",
       "- Enter (in $eed): Import $eed."
@@ -2234,6 +2909,7 @@
         closeHelp();
       } else if ((event.key === "c" || event.key === "C") && !isCtrl) {
         event.preventDefault();
+        applyRandomSeedIfNeeded();
         render();
         return;
       } else if (event.key === " ") {
@@ -2274,6 +2950,16 @@
     modulationInput.addEventListener("input", updateReadouts);
     subdivisionDensityInput.addEventListener("input", updateReadouts);
     tempoInput.addEventListener("input", updateReadouts);
+
+    if (genreMain && genreSub) {
+      genreMain.addEventListener("change", () => {
+        populateSubgenres(genreMain.value);
+        render();
+      });
+      genreSub.addEventListener("change", () => {
+        render();
+      });
+    }
 
     timelineScroll.addEventListener("input", () => {
       timelineView.scrollLeft = parseInt(timelineScroll.value, 10) || 0;
