@@ -2449,8 +2449,8 @@
         masterGain = audioContext.createGain();
         masterGain.gain.value = DEFAULT_GAIN;
         analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-        analyser.smoothingTimeConstant = 0.85;
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.65;
         oscData = new Uint8Array(analyser.fftSize);
         masterGain.connect(analyser);
         analyser.connect(audioContext.destination);
@@ -2487,17 +2487,18 @@
         oscCtx.fillRect(0, 0, width, height);
 
         analyser.getByteTimeDomainData(oscData);
-        oscCtx.lineWidth = 2;
-        oscCtx.strokeStyle = "rgba(67, 255, 180, 0.9)";
+        oscCtx.lineWidth = 2.4;
+        oscCtx.strokeStyle = "rgba(67, 255, 180, 1)";
         oscCtx.shadowBlur = 12;
         oscCtx.shadowColor = "rgba(67, 255, 180, 0.5)";
         oscCtx.beginPath();
 
-        const sliceWidth = width / oscData.length;
+        const sliceWidth = width / (oscData.length - 1);
         let x = 0;
         for (let i = 0; i < oscData.length; i++) {
           const v = oscData[i] / 128.0;
-          const y = (v * height) / 2;
+          const centered = (v - 1) * 1.35;
+          const y = height / 2 + centered * (height / 2);
           if (i === 0) {
             oscCtx.moveTo(x, y);
           } else {
