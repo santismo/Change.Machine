@@ -245,6 +245,7 @@
     .controls {
       display: grid;
       gap: 6px;
+      min-width: 0;
     }
 
     label {
@@ -252,15 +253,19 @@
       gap: 3px;
       font-size: 9px;
       color: var(--muted);
+      min-width: 0;
     }
 
     .genre-row {
       display: flex;
       gap: 6px;
+      min-width: 0;
     }
 
     .genre-row select {
       flex: 1;
+      min-width: 0;
+      max-width: 100%;
     }
 
     input, select, button {
@@ -275,6 +280,11 @@
       padding: 3px 5px;
       border-radius: 4px;
       outline: none;
+      max-width: 100%;
+    }
+
+    select {
+      width: 100%;
     }
 
     input[type="range"] {
@@ -528,6 +538,7 @@
             <button id="generate">¢hange</button>
             <button id="play">Play</button>
             <button id="download" class="secondary">Download .mid</button>
+            <button id="midiToggle" class="secondary">MIDI Out</button>
           </div>
           <h2>Progression</h2>
           <div id="timelineView" class="timeline-view">
@@ -2237,6 +2248,7 @@
     const subdivisionDensityInput = document.getElementById("subdivisionDensity");
     const subdivisionInput = document.getElementById("subdivision");
     const seedInput = document.getElementById("seed");
+    const midiToggle = document.getElementById("midiToggle");
     const importSeed = document.getElementById("importSeed");
     const copySeed = document.getElementById("copySeed");
     const randomSeed = document.getElementById("randomSeed");
@@ -2422,6 +2434,88 @@
 
     populateGenreSelects("core", "base");
 
+    function buildGenreLookup() {
+      const subToMain = {};
+      const labelToSub = {};
+      Object.keys(genreCatalog).forEach(mainKey => {
+        const sub = genreCatalog[mainKey].sub;
+        Object.keys(sub).forEach(subKey => {
+          subToMain[subKey] = mainKey;
+          labelToSub[sub[subKey].toLowerCase()] = subKey;
+        });
+      });
+      return { subToMain, labelToSub };
+    }
+
+    const genreLookup = buildGenreLookup();
+
+    function applyGenreFromSeed(seedText) {
+      if (!genreMain || !genreSub || !seedText) return false;
+      const raw = seedText.toLowerCase().replace(/^\$eed[-\s]*/i, "");
+      if (!raw) return false;
+      let mainKey = null;
+      let subKey = null;
+      const match = raw.match(/([a-z0-9-]+)\s*[:/]\s*([a-z0-9-]+)/i);
+      if (match) {
+        const candidateMain = match[1].toLowerCase();
+        const candidateSub = match[2].toLowerCase();
+        if (genreCatalog[candidateMain] && genreCatalog[candidateMain].sub[candidateSub]) {
+          mainKey = candidateMain;
+          subKey = candidateSub;
+        } else if (genreLookup.subToMain[candidateSub]) {
+          mainKey = genreLookup.subToMain[candidateSub];
+          subKey = candidateSub;
+        }
+      }
+      if (!subKey) {
+        Object.keys(genreLookup.subToMain).some(key => {
+          if (raw.includes(key)) {
+            subKey = key;
+            mainKey = genreLookup.subToMain[key];
+            return true;
+          }
+          return false;
+        });
+      }
+      if (!subKey) {
+        Object.keys(genreLookup.labelToSub).some(label => {
+          if (raw.includes(label)) {
+            subKey = genreLookup.labelToSub[label];
+            mainKey = genreLookup.subToMain[subKey];
+            return true;
+          }
+          return false;
+        });
+      }
+      if (mainKey && subKey) {
+        genreMain.value = mainKey;
+        populateSubgenres(mainKey, subKey);
+        return true;
+      }
+      return false;
+    }
+
+    function applySeedSettings(seedText) {
+      if (!seedText) return;
+      const usedExplicit = applyGenreFromSeed(seedText);
+      const rng = makeRng(`${seedText}|settings`);
+      if (!usedExplicit && genreMain && genreSub) {
+        const mainKeys = Object.keys(genreCatalog);
+        const mainPick = mainKeys[Math.floor(rng() * mainKeys.length)];
+        genreMain.value = mainPick;
+        populateSubgenres(mainPick);
+        const subKeys = Object.keys(genreCatalog[mainPick].sub);
+        genreSub.value = subKeys[Math.floor(rng() * subKeys.length)];
+      }
+      if (densityInput) densityInput.value = String(Math.floor(rng() * 101));
+      if (subdivisionDensityInput) subdivisionDensityInput.value = String(Math.floor(rng() * 101));
+      if (modulationInput) modulationInput.value = String(Math.floor(rng() * 101));
+      if (barsInput) barsInput.value = String(4 + Math.floor(rng() * 29));
+      if (tempoInput) tempoInput.value = String(60 + Math.floor(rng() * 141));
+      if (subdivisionInput) subdivisionInput.value = rng() < 0.5 ? "even" : "mixed";
+      updateReadouts();
+    }
+
     let currentMidi = null;
     let midiBlobUrl = null;
     let currentChords = [];
@@ -2432,6 +2526,7 @@
     let currentFileName = "change.machine.mid";
     let currentSeed = "";
     let seedIsRandom = false;
+    let seedDrivesSettings = false;
     let isPlaying = false;
     let playTimers = [];
     let audioContext = null;
@@ -2442,6 +2537,14 @@
     let oscAnimId = null;
     const activeOscillators = new Set();
     const DEFAULT_GAIN = 0.18;
+    let midiAccess = null;
+    let midiOutput = null;
+    let midiEnabled = false;
+    let midiInput = null;
+    let externalBpm = null;
+    let lastClockTime = null;
+    let clockSmoothing = null;
+    const activeMidiNotes = new Set();
 
     function ensureAudio() {
       if (!audioContext) {
@@ -2459,6 +2562,96 @@
       if (audioContext.state === "suspended") {
         audioContext.resume();
       }
+    }
+
+    function handleMidiMessage(event) {
+      const status = event.data[0];
+      if (status === 0xF8) {
+        const now = performance.now();
+        if (lastClockTime) {
+          const delta = now - lastClockTime;
+          if (delta > 0) {
+            const bpm = 60000 / (delta * 24);
+            const clamped = Math.max(20, Math.min(300, bpm));
+            clockSmoothing = clockSmoothing === null ? clamped : (clockSmoothing * 0.8 + clamped * 0.2);
+            externalBpm = clockSmoothing;
+            if (midiEnabled) {
+              tempoReadout.textContent = `EXT ${externalBpm.toFixed(1)} BPM`;
+            }
+          }
+        }
+        lastClockTime = now;
+      } else if (status === 0xFA || status === 0xFC) {
+        lastClockTime = null;
+      }
+    }
+
+    async function ensureMidi() {
+      if (!midiEnabled) return;
+      if (!navigator.requestMIDIAccess) {
+        return;
+      }
+      if (!midiAccess) {
+        try {
+          midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+          midiAccess.onstatechange = () => {
+            populateMidiOutputs();
+          };
+        } catch (err) {
+          return;
+        }
+      }
+      populateMidiOutputs();
+    }
+
+    function populateMidiOutputs() {
+      const outputs = midiAccess ? Array.from(midiAccess.outputs.values()) : [];
+      const preferredOut = outputs.find(output =>
+        (output.name || "").toLowerCase().includes("logic pro virtual in")
+      );
+      midiOutput = preferredOut || outputs[0] || null;
+
+      const inputs = midiAccess ? Array.from(midiAccess.inputs.values()) : [];
+      const preferredIn = inputs.find(input =>
+        (input.name || "").toLowerCase().includes("logic pro virtual out")
+      );
+      if (midiInput && midiInput !== preferredIn) {
+        midiInput.onmidimessage = null;
+      }
+      midiInput = preferredIn || inputs[0] || null;
+      if (midiInput) {
+        midiInput.onmidimessage = handleMidiMessage;
+      }
+    }
+
+    function sendMidiNoteOn(note, velocity = 96) {
+      if (!midiEnabled || !midiOutput) return;
+      midiOutput.send([0x90, note, velocity]);
+      activeMidiNotes.add(note);
+    }
+
+    function sendMidiNoteOff(note) {
+      if (!midiEnabled || !midiOutput) return;
+      midiOutput.send([0x80, note, 0]);
+      activeMidiNotes.delete(note);
+    }
+
+    function sendAllNotesOff() {
+      if (!midiEnabled || !midiOutput) return;
+      midiOutput.send([0xB0, 123, 0]);
+      activeMidiNotes.clear();
+    }
+
+
+    function scheduleMidiChord(notes, startMs, durationMs) {
+      if (!midiOutput) return;
+      const onId = setTimeout(() => {
+        notes.forEach(note => sendMidiNoteOn(note, 96));
+      }, Math.max(0, startMs));
+      const offId = setTimeout(() => {
+        notes.forEach(note => sendMidiNoteOff(note));
+      }, Math.max(0, startMs + durationMs));
+      playTimers.push(onId, offId);
     }
 
     function resizeOscilloscope() {
@@ -2591,6 +2784,7 @@
         }
       });
       activeOscillators.clear();
+      sendAllNotesOff();
     }
 
     function restoreMasterGain() {
@@ -2603,22 +2797,30 @@
     function startPlayback(startIndex) {
       if (!currentChords.length) return;
       ensureAudio();
+      ensureMidi();
       isPlaying = true;
       playButton.textContent = "Stop";
       clearTimers();
 
-      const bpm = Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
+      const bpm = getPlaybackBpm();
       const beatSec = 60 / bpm;
       const safeStart = ((startIndex % currentChords.length) + currentChords.length) % currentChords.length;
       let cursor = 0;
 
       setActiveChord(safeStart);
       restoreMasterGain();
+      if (midiEnabled) {
+        ensureMidi();
+      }
 
+      const baseMs = performance.now();
       for (let i = safeStart; i < currentChords.length; i++) {
         const chord = currentChords[i];
         const startTime = audioContext.currentTime + cursor * beatSec;
         playChordAtTime(chord.notes, startTime, chord.duration * beatSec);
+        if (midiEnabled) {
+          scheduleMidiChord(chord.notes, (baseMs + cursor * beatSec * 1000) - performance.now(), chord.duration * beatSec * 1000);
+        }
         const timerId = setTimeout(() => {
           setActiveChord(i);
         }, Math.max(0, cursor * beatSec * 1000));
@@ -2638,20 +2840,34 @@
       densityReadout.textContent = `${densityInput.value}%`;
       modulationReadout.textContent = `${modulationInput.value}%`;
       subdivisionDensityReadout.textContent = `${subdivisionDensityInput.value}%`;
-      tempoReadout.textContent = `${tempoInput.value} BPM`;
+      if (midiEnabled) {
+        tempoReadout.textContent = externalBpm ? `EXT ${externalBpm.toFixed(1)} BPM` : "WAITING FOR CLOCK";
+      } else {
+        tempoReadout.textContent = `${tempoInput.value} BPM`;
+      }
+    }
+
+    function getPlaybackBpm() {
+      if (midiEnabled && externalBpm) {
+        return externalBpm;
+      }
+      return Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
     }
 
     function render() {
       stopPlayback();
+      const seedRaw = seedInput.value.trim() || `$eed-${Date.now()}`;
+      const seedLabel = seedRaw;
+      if (seedDrivesSettings) {
+        applySeedSettings(seedLabel);
+      }
       updateReadouts();
       const bars = parseInt(barsInput.value, 10);
       const densityPercent = Math.max(0, Math.min(100, parseInt(densityInput.value, 10) || 0));
       const modulationPercent = Math.max(0, Math.min(100, parseInt(modulationInput.value, 10) || 0));
       const subdivision = subdivisionInput.value;
       const subdivisionDensity = Math.max(0, Math.min(100, parseInt(subdivisionDensityInput.value, 10) || 0)) / 100;
-      const bpm = Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
-      const seedRaw = seedInput.value.trim() || `$eed-${Date.now()}`;
-      const seedLabel = seedRaw;
+      const bpm = getPlaybackBpm();
       const genre = genreSub ? genreSub.value : "base";
       const genreLabel = (genreMain && genreSub && genreCatalog[genreMain.value] && genreCatalog[genreMain.value].sub[genreSub.value])
         ? genreCatalog[genreMain.value].sub[genreSub.value]
@@ -2669,6 +2885,9 @@
       currentChords = chords;
       currentMidi = buildMidi(chords, bpm);
       currentSeed = seedLabel;
+      if (seedInput) {
+        seedInput.value = seedLabel;
+      }
       currentFileName = `${sanitizeFileName(seedLabel)}.mid`;
       if (midiBlobUrl) {
         URL.revokeObjectURL(midiBlobUrl);
@@ -2728,6 +2947,7 @@
       if (!seedIsRandom) return;
       const rand = Math.random().toString(36).slice(2, 8);
       seedInput.value = `$eed-${rand}`;
+      seedDrivesSettings = true;
     }
 
     document.getElementById("generate").addEventListener("click", () => {
@@ -2767,6 +2987,7 @@
       const trimmed = seedInput.value.trim();
       if (!trimmed) return;
       seedIsRandom = false;
+      seedDrivesSettings = true;
       render();
     });
 
@@ -2775,6 +2996,7 @@
         event.preventDefault();
         if (seedInput.value.trim()) {
           seedIsRandom = false;
+          seedDrivesSettings = true;
           render();
         }
       }
@@ -2782,6 +3004,7 @@
 
     seedInput.addEventListener("input", () => {
       seedIsRandom = false;
+      seedDrivesSettings = true;
     });
 
     copySeed.addEventListener("click", async () => {
@@ -2804,20 +3027,7 @@
       const rand = Math.random().toString(36).slice(2, 8);
       seedInput.value = `$eed-${rand}`;
       seedIsRandom = true;
-      if (genreMain && genreSub) {
-        const mainKeys = Object.keys(genreCatalog);
-        const mainPick = mainKeys[Math.floor(Math.random() * mainKeys.length)];
-        genreMain.value = mainPick;
-        populateSubgenres(mainPick);
-        const subKeys = Object.keys(genreCatalog[mainPick].sub);
-        const subPick = subKeys[Math.floor(Math.random() * subKeys.length)];
-        genreSub.value = subPick;
-      }
-      if (densityInput) densityInput.value = String(Math.floor(Math.random() * 101));
-      if (subdivisionDensityInput) subdivisionDensityInput.value = String(Math.floor(Math.random() * 101));
-      if (modulationInput) modulationInput.value = String(Math.floor(Math.random() * 101));
-      if (barsInput) barsInput.value = String(4 + Math.floor(Math.random() * 29));
-      if (tempoInput) tempoInput.value = String(60 + Math.floor(Math.random() * 141));
+      seedDrivesSettings = true;
       render();
     });
 
@@ -2828,17 +3038,19 @@
       "- Key center: Choose a root or random.",
       "- Genre + Subgenre: Pick a main style and a specific variant.",
       "- Tempo: BPM for playback and MIDI.",
+      "- MIDI out: Enable WebMIDI output and follow external clock.",
       "- Bars: Length of the progression.",
       "- Harmonic density (%): How busy the harmony feels.",
       "- Modulation amount (%): Likelihood of key shifts.",
       "- Subdivision density (%): How often bars subdivide.",
       "- Subdivision mode: Even only or even + triplet feel.",
-      "- $eed: Paste any text to make a repeatable progression.",
+      "- $eed: Paste any text to make a repeatable progression, or share creative $eeds with others.",
       "",
       "BUTTONS",
       "- ¢hange: Generate a new progression.",
       "- Play: Listen with a sine synth (loops).",
       "- Download .mid: Save the MIDI file.",
+      "- MIDI Out: Enable WebMIDI output and disable tempo.",
       "- Import $eed: Load the current $eed value.",
       "- Copy $eed: Copy the current $eed.",
       "- Random $eed: Randomizes $eed and settings.",
@@ -2909,6 +3121,7 @@
         event.preventDefault();
         closeHelp();
       } else if ((event.key === "c" || event.key === "C") && !isCtrl) {
+        if (event.target === seedInput) return;
         event.preventDefault();
         applyRandomSeedIfNeeded();
         render();
@@ -2929,9 +3142,17 @@
         setActiveChord(nextIndex);
         ensureAudio();
         restoreMasterGain();
-        const bpm = Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
+        ensureMidi();
+      const bpm = getPlaybackBpm();
         const beatSec = 60 / bpm;
         playChordAtTime(currentChords[nextIndex].notes, audioContext.currentTime, currentChords[nextIndex].duration * beatSec);
+        if (midiEnabled) {
+          currentChords[nextIndex].notes.forEach(note => sendMidiNoteOn(note, 96));
+          const offId = setTimeout(() => {
+            currentChords[nextIndex].notes.forEach(note => sendMidiNoteOff(note));
+          }, currentChords[nextIndex].duration * beatSec * 1000);
+          playTimers.push(offId);
+        }
       } else if (event.key === "ArrowLeft") {
         if (tag === "input" || tag === "textarea" || tag === "select") return;
         event.preventDefault();
@@ -2940,24 +3161,59 @@
         setActiveChord(prevIndex);
         ensureAudio();
         restoreMasterGain();
-        const bpm = Math.max(60, Math.min(200, parseInt(tempoInput.value, 10) || 110));
+        ensureMidi();
+        const bpm = getPlaybackBpm();
         const beatSec = 60 / bpm;
         playChordAtTime(currentChords[prevIndex].notes, audioContext.currentTime, currentChords[prevIndex].duration * beatSec);
+        if (midiEnabled) {
+          currentChords[prevIndex].notes.forEach(note => sendMidiNoteOn(note, 96));
+          const offId = setTimeout(() => {
+            currentChords[prevIndex].notes.forEach(note => sendMidiNoteOff(note));
+          }, currentChords[prevIndex].duration * beatSec * 1000);
+          playTimers.push(offId);
+        }
       }
     });
 
-    barsInput.addEventListener("input", updateReadouts);
-    densityInput.addEventListener("input", updateReadouts);
-    modulationInput.addEventListener("input", updateReadouts);
-    subdivisionDensityInput.addEventListener("input", updateReadouts);
-    tempoInput.addEventListener("input", updateReadouts);
+    barsInput.addEventListener("input", () => {
+      seedDrivesSettings = false;
+      updateReadouts();
+    });
+    densityInput.addEventListener("input", () => {
+      seedDrivesSettings = false;
+      updateReadouts();
+    });
+    modulationInput.addEventListener("input", () => {
+      seedDrivesSettings = false;
+      updateReadouts();
+    });
+    subdivisionDensityInput.addEventListener("input", () => {
+      seedDrivesSettings = false;
+      updateReadouts();
+    });
+    tempoInput.addEventListener("input", () => {
+      seedDrivesSettings = false;
+      updateReadouts();
+    });
+    if (subdivisionInput) {
+      subdivisionInput.addEventListener("change", () => {
+        seedDrivesSettings = false;
+      });
+    }
+    if (keySelect) {
+      keySelect.addEventListener("change", () => {
+        seedDrivesSettings = false;
+      });
+    }
 
     if (genreMain && genreSub) {
       genreMain.addEventListener("change", () => {
+        seedDrivesSettings = false;
         populateSubgenres(genreMain.value);
         render();
       });
       genreSub.addEventListener("change", () => {
+        seedDrivesSettings = false;
         render();
       });
     }
@@ -2973,6 +3229,38 @@
     window.addEventListener("resize", () => {
       resizeOscilloscope();
     });
+
+    if (midiToggle) {
+      midiToggle.addEventListener("click", async () => {
+        midiEnabled = !midiEnabled;
+        if (midiEnabled) {
+          tempoInput.disabled = true;
+          tempoReadout.textContent = "WAITING FOR CLOCK";
+          await ensureMidi();
+          if (!midiAccess) {
+            midiEnabled = false;
+            tempoInput.disabled = false;
+            updateReadouts();
+            midiToggle.textContent = "MIDI Out";
+            return;
+          }
+          midiToggle.textContent = midiOutput ? "MIDI Out: On" : "MIDI Out: No device";
+        } else {
+          sendAllNotesOff();
+          midiOutput = null;
+          if (midiInput) {
+            midiInput.onmidimessage = null;
+            midiInput = null;
+          }
+          externalBpm = null;
+          lastClockTime = null;
+          clockSmoothing = null;
+          tempoInput.disabled = false;
+          updateReadouts();
+          midiToggle.textContent = "MIDI Out";
+        }
+      });
+    }
 
     render();
   </script>
