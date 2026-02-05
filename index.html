@@ -420,12 +420,16 @@
 
     .help-terminal {
       width: min(720px, 100%);
+      max-height: min(70vh, 520px);
       background: var(--bg-3);
       border: 1px solid rgba(var(--border-rgb), 0.4);
       box-shadow: 0 0 24px rgba(var(--glow-rgb), 0.3);
-      padding: 20px;
+      padding: 16px 18px;
       font-size: 12px;
       line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
     .help-terminal h3 {
@@ -440,6 +444,29 @@
       margin: 0;
       white-space: pre-wrap;
       color: var(--text);
+      overflow-y: auto;
+      max-height: 52vh;
+      padding-right: 6px;
+    }
+
+    .help-terminal pre {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(var(--glow-rgb), 0.7) rgba(var(--border-rgb), 0.15);
+    }
+
+    .help-terminal pre::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .help-terminal pre::-webkit-scrollbar-track {
+      background: rgba(var(--border-rgb), 0.15);
+      border-radius: 6px;
+    }
+
+    .help-terminal pre::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(var(--glow-rgb), 0.8), rgba(var(--accent-rgb), 0.5));
+      border-radius: 6px;
+      border: 1px solid rgba(var(--border-rgb), 0.3);
     }
 
     .route-modal {
@@ -606,6 +633,12 @@
       text-align: right;
     }
 
+    .small-toggle {
+      padding: 4px 8px;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+    }
+
     .midi-route {
       display: none;
     }
@@ -683,10 +716,20 @@
       background: var(--timeline-bg);
       width: 100%;
       max-width: 100%;
+      position: relative;
       overflow-x: hidden;
       overflow-y: hidden;
       padding-bottom: 6px;
       scrollbar-gutter: stable;
+    }
+
+    .selection-box {
+      position: absolute;
+      border: 1px dashed rgba(var(--accent-rgb), 0.85);
+      background: rgba(var(--accent-rgb), 0.12);
+      box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.2);
+      pointer-events: none;
+      z-index: 3;
     }
 
     .ruler {
@@ -710,9 +753,16 @@
     .track {
       position: relative;
       height: 140px;
+      border-bottom: 1px solid rgba(var(--border-rgb), 0.5);
+      box-shadow: inset 0 -1px 0 rgba(var(--accent-rgb), 0.22);
       background-image:
         repeating-linear-gradient(90deg, rgba(var(--glow-rgb), 0.3) 0, rgba(var(--glow-rgb), 0.3) 1px, transparent 1px, transparent var(--bar-px)),
         repeating-linear-gradient(90deg, rgba(var(--glow-rgb), 0.08) 0, rgba(var(--glow-rgb), 0.08) 1px, transparent 1px, transparent var(--beat-px));
+    }
+
+    .track + .track {
+      border-top: 1px solid rgba(var(--border-rgb), 0.5);
+      box-shadow: inset 0 1px 0 rgba(var(--accent-rgb), 0.22);
     }
 
     .clip {
@@ -736,6 +786,13 @@
     .clip.active {
       border-color: rgba(var(--accent-rgb), 0.95);
       box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.35);
+    }
+
+    .clip.selected,
+    .bass-clip.selected,
+    .melody-clip.selected {
+      border-color: rgba(var(--accent-rgb), 0.9);
+      box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.45);
     }
 
     .clip-title {
@@ -935,6 +992,7 @@
                 <span>VOL</span>
                 <input id="chordVolume" type="range" min="0" max="100" value="100" />
               </div>
+              <button id="chordLoopMode" class="secondary small-toggle">Loop</button>
               <button id="chordMute" class="secondary icon-toggle" aria-pressed="false" title="Mute chords">M</button>
               <button id="chordCollapse" class="secondary">▾</button>
             </div>
@@ -1015,6 +1073,7 @@
                 <span>VOL</span>
                 <input id="bassVolume" type="range" min="0" max="100" value="100" />
               </div>
+              <button id="bassLoopMode" class="secondary small-toggle">Loop</button>
               <button id="bassMute" class="secondary icon-toggle" aria-pressed="false" title="Mute bass">M</button>
               <button id="bassCollapse" class="secondary">▾</button>
             </div>
@@ -1095,6 +1154,7 @@
                 <span>VOL</span>
                 <input id="melodyVolume" type="range" min="0" max="100" value="100" />
               </div>
+              <button id="melodyLoopMode" class="secondary small-toggle">Loop</button>
               <button id="melodyMute" class="secondary icon-toggle" aria-pressed="false" title="Mute melody">M</button>
               <button id="melodyCollapse" class="secondary">▾</button>
             </div>
@@ -1183,6 +1243,7 @@
               <input id="tempo" type="range" min="60" max="200" value="110" />
               <span id="tempoReadout" class="tempo-readout">110 BPM</span>
             </div>
+            <button id="selectToggle" class="secondary small-toggle">Select</button>
           </div>
           <h2>Progression</h2>
           <div id="timelineView" class="timeline-view">
@@ -3733,6 +3794,9 @@
       if (chordVolumeInput) chordVolumeInput.value = "100";
       if (bassVolumeInput) bassVolumeInput.value = "100";
       if (melodyVolumeInput) melodyVolumeInput.value = "100";
+      setTrackPlaybackMode("chord", "loop");
+      setTrackPlaybackMode("bass", "loop");
+      setTrackPlaybackMode("melody", "loop");
       updateTrackGains();
       if (midiEnabled) {
         midiEnabled = false;
@@ -3774,6 +3838,9 @@
     const genreSub = document.getElementById("genreSub");
     const tempoInput = document.getElementById("tempo");
     const tempoReadout = document.getElementById("tempoReadout");
+    const chordLoopButton = document.getElementById("chordLoopMode");
+    const bassLoopButton = document.getElementById("bassLoopMode");
+    const melodyLoopButton = document.getElementById("melodyLoopMode");
     const barsInput = document.getElementById("bars");
     const densityInput = document.getElementById("density");
     const colorInput = document.getElementById("color");
@@ -3855,6 +3922,7 @@
     const track = document.getElementById("track");
     const bassTrack = document.getElementById("bassTrack");
     const melodyTrack = document.getElementById("melodyTrack");
+    const selectToggle = document.getElementById("selectToggle");
     const timelineScroll = document.getElementById("timelineScroll");
     const progressionText = document.getElementById("progressionText");
     const progressionHighlight = document.getElementById("progressionHighlight");
@@ -4478,6 +4546,17 @@
     let bassMuted = false;
     let melodyMuted = false;
     let alignRaf = null;
+    let suppressPanelAlignment = false;
+    let chordPlaybackMode = "loop";
+    let bassPlaybackMode = "loop";
+    let melodyPlaybackMode = "loop";
+    let selectionMode = false;
+    let selectionBox = null;
+    let selectionStart = null;
+    const selectedChordIndices = new Set();
+    const selectedBassIndices = new Set();
+    const selectedMelodyIndices = new Set();
+    let currentKeyUsed = "C";
 
     function getMidiVelocity() {
       if (!midiVelocity) return 96;
@@ -4537,6 +4616,20 @@
       const value = parseFloat(input.value);
       if (Number.isNaN(value)) return 1;
       return Math.max(0, Math.min(1, value / 100));
+    }
+
+    function setTrackPlaybackMode(track, mode) {
+      const value = mode === "regen" ? "regen" : "loop";
+      if (track === "chord") {
+        chordPlaybackMode = value;
+        if (chordLoopButton) chordLoopButton.textContent = value === "loop" ? "Loop" : "Regen";
+      } else if (track === "bass") {
+        bassPlaybackMode = value;
+        if (bassLoopButton) bassLoopButton.textContent = value === "loop" ? "Loop" : "Regen";
+      } else if (track === "melody") {
+        melodyPlaybackMode = value;
+        if (melodyLoopButton) melodyLoopButton.textContent = value === "loop" ? "Loop" : "Regen";
+      }
     }
 
     function updateTrackGains() {
@@ -5018,6 +5111,62 @@
       }
     }
 
+    function clearSelection() {
+      selectedChordIndices.clear();
+      selectedBassIndices.clear();
+      selectedMelodyIndices.clear();
+      chordClips.forEach((clip) => {
+        if (clip) clip.classList.remove("selected");
+      });
+      bassClips.forEach((item) => {
+        if (item && item.el) item.el.classList.remove("selected");
+      });
+      melodyClips.forEach((item) => {
+        if (item && item.el) item.el.classList.remove("selected");
+      });
+    }
+
+    function setSelectionMode(active) {
+      selectionMode = active;
+      if (selectToggle) {
+        selectToggle.textContent = selectionMode ? "Selecting" : "Select";
+      }
+    }
+
+    function rectsIntersect(a, b) {
+      return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+    }
+
+    function updateSelectionFromBox() {
+      if (!selectionBox) return;
+      const boxRect = selectionBox.getBoundingClientRect();
+      clearSelection();
+      chordClips.forEach((clip, index) => {
+        if (!clip) return;
+        const clipRect = clip.getBoundingClientRect();
+        if (rectsIntersect(boxRect, clipRect)) {
+          clip.classList.add("selected");
+          selectedChordIndices.add(index);
+        }
+      });
+      bassClips.forEach((item, index) => {
+        if (!item || !item.el) return;
+        const clipRect = item.el.getBoundingClientRect();
+        if (rectsIntersect(boxRect, clipRect)) {
+          item.el.classList.add("selected");
+          selectedBassIndices.add(index);
+        }
+      });
+      melodyClips.forEach((item, index) => {
+        if (!item || !item.el) return;
+        const clipRect = item.el.getBoundingClientRect();
+        if (rectsIntersect(boxRect, clipRect)) {
+          item.el.classList.add("selected");
+          selectedMelodyIndices.add(index);
+        }
+      });
+    }
+
     function clearMelodyHighlights() {
       if (!melodyClips.length) return;
       melodyClips.forEach(item => {
@@ -5125,6 +5274,114 @@
         playTimers.push(offId);
       }
       scrollTimelineToBeat(startBeat);
+    }
+
+    function updateChordClips() {
+      chordClips.forEach((clip, index) => {
+        if (!clip || !currentChords[index]) return;
+        clip.innerHTML = `<div class="clip-title">${currentChords[index].name}</div>`;
+      });
+      chordTextTokens = buildProgressionTokens(currentChords);
+      progressionText.value = formatProgressionTextFromTokens(chordTextTokens);
+      renderProgressionHighlight(currentChordIndex);
+    }
+
+    function regenerateSelectedChords() {
+      if (!selectedChordIndices.size) {
+        applyRandomSeedIfNeeded();
+        render();
+        return;
+      }
+      const seedLabel = currentSeed || seedInput.value.trim() || `$eed-${Date.now()}`;
+      const newSeed = `${seedLabel}|chordsel-${Date.now()}`;
+      const bars = parseInt(barsInput.value, 10);
+      const densityPercent = Math.max(0, Math.min(100, parseInt(densityInput.value, 10) || 0));
+      const colorPercent = Math.max(0, Math.min(100, parseInt(colorInput.value, 10) || 0));
+      const modulationPercent = Math.max(0, Math.min(100, parseInt(modulationInput.value, 10) || 0));
+      const subdivision = subdivisionInput.value;
+      const subdivisionDensity = Math.max(0, Math.min(100, parseInt(subdivisionDensityInput.value, 10) || 0)) / 100;
+      const genre = genreSub ? genreSub.value : "base";
+      const key = currentKeyUsed || keySelect.value || "C";
+      const freshChords = generateProgression({
+        bars,
+        key,
+        densityPercent,
+        seed: newSeed,
+        subdivision,
+        subdivisionDensity,
+        genre,
+        modulationPercent,
+        colorPercent
+      });
+      selectedChordIndices.forEach((index) => {
+        if (!currentChords[index] || !freshChords[index]) return;
+        currentChords[index].name = freshChords[index].name;
+        currentChords[index].notes = freshChords[index].notes;
+        currentChords[index].quality = freshChords[index].quality;
+      });
+      updateChordClips();
+      clearSelection();
+      rebuildMidi();
+    }
+
+    function regenerateSelectedBass() {
+      if (!selectedBassIndices.size) {
+        regenerateBass(true);
+        return;
+      }
+      const seedLabel = currentSeed || seedInput?.value || "$eed-bass";
+      const bassSeed = getBassSeedLabel(seedLabel, true);
+      const freshBass = generateBassLine({
+        chords: currentChords,
+        seed: bassSeed,
+        densityPercent: parseInt(bassDensityInput?.value, 10) || 0,
+        movementPercent: parseInt(bassMovementInput?.value, 10) || 0,
+        fillPercent: parseInt(bassFillsInput?.value, 10) || 0,
+        colorPercent: parseInt(bassColorInput?.value, 10) || 0,
+        subdivisionDensity: parseInt(bassSubdivisionDensityInput?.value, 10) || 0,
+        subdivisionMode: bassSubdivisionInput?.value || "even",
+        style: bassStyleInput?.value || "auto",
+        register: parseInt(bassRegisterInput?.value, 10) || 36,
+        genre: genreSub?.value || "base",
+        mainGenre: genreMain?.value || ""
+      });
+      selectedBassIndices.forEach((index) => {
+        if (!currentBass[index] || !freshBass[index]) return;
+        currentBass[index].note = freshBass[index].note;
+      });
+      renderBassTrack();
+      clearSelection();
+      rebuildMidi();
+    }
+
+    function regenerateSelectedMelody() {
+      if (!selectedMelodyIndices.size) {
+        regenerateMelody(true);
+        return;
+      }
+      const seedLabel = currentSeed || seedInput?.value || "$eed-melody";
+      const melodySeed = getMelodySeedLabel(seedLabel, true);
+      const freshMelody = generateMelodyLine({
+        chords: currentChords,
+        seed: melodySeed,
+        densityPercent: parseInt(melodyDensityInput?.value, 10) || 0,
+        movementPercent: parseInt(melodyMovementInput?.value, 10) || 0,
+        fillPercent: parseInt(melodyFillsInput?.value, 10) || 0,
+        colorPercent: parseInt(melodyColorInput?.value, 10) || 0,
+        subdivisionDensity: parseInt(melodySubdivisionDensityInput?.value, 10) || 0,
+        subdivisionMode: melodySubdivisionInput?.value || "even",
+        style: melodyStyleInput?.value || "auto",
+        register: parseInt(melodyRegisterInput?.value, 10) || 72,
+        genre: genreSub?.value || "base",
+        mainGenre: genreMain?.value || ""
+      });
+      selectedMelodyIndices.forEach((index) => {
+        if (!currentMelody[index] || !freshMelody[index]) return;
+        currentMelody[index].note = freshMelody[index].note;
+      });
+      renderMelodyTrack();
+      clearSelection();
+      rebuildMidi();
     }
 
     function stopPlayback() {
@@ -5239,6 +5496,27 @@
 
       const endTimer = setTimeout(() => {
         if (!isPlaying) return;
+        if (chordPlaybackMode === "regen") {
+          const keepAlign = songMode
+            && chordPanel?.classList.contains("collapsed")
+            && bassPanel?.classList.contains("collapsed")
+            && melodyPanel?.classList.contains("collapsed");
+          if (keepAlign) {
+            suppressPanelAlignment = true;
+          }
+          applyRegenSeed();
+          render();
+          if (keepAlign) {
+            suppressPanelAlignment = false;
+          }
+        } else {
+          if (songMode && bassPlaybackMode === "regen") {
+            regenerateBass(true);
+          }
+          if (songMode && melodyPlaybackMode === "regen") {
+            regenerateMelody(true);
+          }
+        }
         startPlayback(0);
       }, cursor * beatSec * 1000 + 50);
       playTimers.push(endTimer);
@@ -5331,6 +5609,7 @@
         key = noteNames[Math.floor(keyRng() * noteNames.length)];
         keyLabel = `random → ${key}`;
       }
+      currentKeyUsed = key;
 
       const chords = generateProgression({ bars, key, densityPercent, seed: seedLabel, subdivision, subdivisionDensity, genre, modulationPercent, colorPercent });
       if (previousSeed && previousSeed !== seedLabel) {
@@ -5438,6 +5717,7 @@
 
       renderBassTrack();
       renderMelodyTrack();
+      clearSelection();
       schedulePanelAlignment();
 
       chordTextTokens = buildProgressionTokens(chords);
@@ -5458,6 +5738,14 @@
         const rand = Math.random().toString(36).slice(2, 8);
         seedInput.value = `$eed-${rand}`;
       }
+    }
+
+    function applyRegenSeed() {
+      const rand = Math.random().toString(36).slice(2, 8);
+      seedInput.value = `$eed-${rand}`;
+      seedIsRandom = true;
+      seedManual = false;
+      seedDrivesSettings = false;
     }
 
     function randomizeBassControls() {
@@ -5503,8 +5791,12 @@
     }
 
     document.getElementById("generate").addEventListener("click", () => {
-      applyRandomSeedIfNeeded();
-      render();
+      if (selectedChordIndices.size) {
+        regenerateSelectedChords();
+      } else {
+        applyRandomSeedIfNeeded();
+        render();
+      }
     });
 
     document.getElementById("download").addEventListener("click", () => {
@@ -5592,13 +5884,21 @@
 
     if (bassGenerate) {
       bassGenerate.addEventListener("click", () => {
-        regenerateBass(true);
+        if (selectedBassIndices.size) {
+          regenerateSelectedBass();
+        } else {
+          regenerateBass(true);
+        }
       });
     }
 
     if (melodyGenerate) {
       melodyGenerate.addEventListener("click", () => {
-        regenerateMelody(true);
+        if (selectedMelodyIndices.size) {
+          regenerateSelectedMelody();
+        } else {
+          regenerateMelody(true);
+        }
       });
     }
 
@@ -5623,6 +5923,8 @@
       "- Bass fills (%): Scale-based fill notes (0% none, 100% every chord).",
       "- Melody fills (%): Melodic fill notes within the chord scale.",
       "- Track VOL: Per-panel audio level (hidden when MIDI Out is on).",
+      "- Select: Drag a box over clips, then hit ¢hords/฿ass/Melody to replace only the selection.",
+      "- Loop/Regen (per track): Loop that track or regenerate it at the end.",
       "- Mute icons: Toggle chord/bass/melody audio + MIDI.",
       "- $eed: Paste any text to make a repeatable progression, or share creative $eeds with others.",
       "",
@@ -5652,10 +5954,7 @@
       "- M: Generate melody.",
       "- Click clips: Jump to that point and audition the chord/bass/melody.",
       "- $ong button: Toggle $ong mode (auto-bass + auto-melody).",
-      "",
-      "UNDER CONSTRUCTION",
-      "- Expanded MIDI I/O options.",
-      "- More themes."
+      ""
     ].join("\n");
 
     let helpTypeTimer = null;
@@ -5665,14 +5964,15 @@
       helpText.textContent = "";
       if (helpTypeTimer) clearInterval(helpTypeTimer);
       let index = 0;
+      const charsPerTick = 4;
       helpTypeTimer = setInterval(() => {
         helpText.textContent = helpContent.slice(0, index);
-        index += 1;
+        index += charsPerTick;
         if (index > helpContent.length) {
           clearInterval(helpTypeTimer);
           helpTypeTimer = null;
         }
-      }, 2);
+      }, 1);
     }
 
     function openHelp() {
@@ -5759,6 +6059,7 @@
     }
 
     function schedulePanelAlignment() {
+      if (suppressPanelAlignment) return;
       if (alignRaf) cancelAnimationFrame(alignRaf);
       alignRaf = requestAnimationFrame(() => {
         alignRaf = null;
@@ -6076,6 +6377,24 @@
         randomizeMelodyControls();
       });
     }
+    if (chordLoopButton) {
+      chordLoopButton.addEventListener("click", () => {
+        setTrackPlaybackMode("chord", chordPlaybackMode === "loop" ? "regen" : "loop");
+      });
+      setTrackPlaybackMode("chord", "loop");
+    }
+    if (bassLoopButton) {
+      bassLoopButton.addEventListener("click", () => {
+        setTrackPlaybackMode("bass", bassPlaybackMode === "loop" ? "regen" : "loop");
+      });
+      setTrackPlaybackMode("bass", "loop");
+    }
+    if (melodyLoopButton) {
+      melodyLoopButton.addEventListener("click", () => {
+        setTrackPlaybackMode("melody", melodyPlaybackMode === "loop" ? "regen" : "loop");
+      });
+      setTrackPlaybackMode("melody", "loop");
+    }
     if (chordVolumeInput) {
       chordVolumeInput.addEventListener("input", () => {
         updateTrackGains();
@@ -6148,6 +6467,70 @@
     timelineView.addEventListener("scroll", () => {
       timelineScroll.value = String(timelineView.scrollLeft);
     });
+
+    if (timelineView) {
+      selectionBox = document.createElement("div");
+      selectionBox.className = "selection-box";
+      selectionBox.style.display = "none";
+      timelineView.appendChild(selectionBox);
+
+      const onMouseMove = (event) => {
+        if (!selectionStart || !selectionBox) return;
+        const rect = timelineView.getBoundingClientRect();
+        const currentX = event.clientX - rect.left + timelineView.scrollLeft;
+        const currentY = event.clientY - rect.top + timelineView.scrollTop;
+        const left = Math.min(selectionStart.x, currentX);
+        const top = Math.min(selectionStart.y, currentY);
+        const width = Math.abs(selectionStart.x - currentX);
+        const height = Math.abs(selectionStart.y - currentY);
+        selectionBox.style.left = `${left}px`;
+        selectionBox.style.top = `${top}px`;
+        selectionBox.style.width = `${width}px`;
+        selectionBox.style.height = `${height}px`;
+        updateSelectionFromBox();
+      };
+
+      const onMouseUp = () => {
+        if (!selectionStart) return;
+        if (selectionBox) {
+          updateSelectionFromBox();
+        }
+        selectionStart = null;
+        if (selectionBox) {
+          selectionBox.style.display = "none";
+        }
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+      };
+
+      timelineView.addEventListener("mousedown", (event) => {
+        if (!selectionMode) return;
+        if (event.button !== 0) return;
+        const rect = timelineView.getBoundingClientRect();
+        selectionStart = {
+          x: event.clientX - rect.left + timelineView.scrollLeft,
+          y: event.clientY - rect.top + timelineView.scrollTop
+        };
+        clearSelection();
+        if (selectionBox) {
+          selectionBox.style.display = "block";
+          selectionBox.style.left = `${selectionStart.x}px`;
+          selectionBox.style.top = `${selectionStart.y}px`;
+          selectionBox.style.width = "0px";
+          selectionBox.style.height = "0px";
+        }
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+        event.preventDefault();
+      });
+    }
+
+    if (selectToggle) {
+      selectToggle.addEventListener("click", () => {
+        setSelectionMode(!selectionMode);
+      });
+      setSelectionMode(false);
+    }
 
     if (midiOutSelect) {
       midiOutSelect.addEventListener("change", () => {
