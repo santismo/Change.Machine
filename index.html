@@ -3607,6 +3607,144 @@
       return "pop";
     }
 
+    function getDrumPatternPreset(subGenre, mainGenre, style, rng) {
+      const sub = (subGenre || "").toLowerCase();
+      const main = (mainGenre || "").toLowerCase();
+      const preset = {
+        stepsPerBar: 16,
+        kick: [0, 8],
+        snare: [4, 12],
+        hat: [0, 2, 4, 6, 8, 10, 12, 14],
+        ride: [],
+        rim: [],
+        clap: [],
+        ghost: [],
+        openHat: [],
+        extraKick: [2, 6, 9, 13, 15],
+        tomFill: [],
+        hatNote: 42,
+        velocities: {
+          kick: 96,
+          snare: 100,
+          hat: 72,
+          ride: 76,
+          ghost: 58,
+          rim: 70,
+          clap: 88,
+          openHat: 86
+        }
+      };
+
+      const setSwing = () => {
+        preset.stepsPerBar = 12;
+        preset.hat = [];
+        preset.ride = [0, 3, 4, 6, 9, 10];
+        preset.hatNote = 51;
+        preset.kick = [0, 6];
+        preset.snare = [];
+        preset.ghost = [4, 10];
+        preset.extraKick = [2, 5, 8, 11];
+      };
+
+      if (sub.includes("bebop") || sub.includes("swing") || sub.includes("gypsy") || sub.includes("cool") || sub.includes("modal") || sub.includes("jazz")) {
+        setSwing();
+      } else if (sub.includes("fusion")) {
+        preset.kick = [0, 7, 10, 13];
+        preset.snare = [4, 12];
+        preset.hat = [...Array(16).keys()];
+        preset.extraKick = [2, 6, 9, 14];
+      } else if (sub.includes("bossa")) {
+        preset.kick = [0, 6, 8, 14];
+        preset.snare = [12];
+        preset.rim = [4, 12];
+        preset.hat = [0, 4, 8, 12];
+      } else if (sub.includes("samba") || sub.includes("latin-jazz") || sub.includes("latin")) {
+        preset.kick = [0, 4, 8, 12];
+        preset.snare = [3, 7, 11, 15];
+        preset.hat = [0, 2, 4, 6, 8, 10, 12, 14];
+        preset.extraKick = [5, 9, 13];
+      } else if (sub.includes("lofi") || sub.includes("hip-hop") || sub.includes("hiphop")) {
+        preset.kick = [0, 9, 11];
+        preset.snare = [4, 12];
+        preset.hat = [0, 4, 8, 12];
+        preset.extraKick = [6, 14];
+      } else if (sub.includes("funk") || sub.includes("neo-soul") || sub.includes("soul") || sub.includes("rnb")) {
+        preset.kick = [0, 3, 7, 10, 12];
+        preset.snare = [4, 12];
+        preset.hat = [...Array(16).keys()];
+        preset.extraKick = [2, 6, 9, 13, 15];
+      } else if (sub.includes("blues")) {
+        preset.stepsPerBar = 12;
+        preset.kick = [0, 6];
+        preset.snare = [3, 9];
+        preset.hat = [0, 4, 6, 10];
+        preset.extraKick = [2, 5, 8, 11];
+      } else if (sub.includes("reggae") || sub.includes("rega")) {
+        preset.kick = [8];
+        preset.snare = [8];
+        preset.hat = [2, 6, 10, 14];
+        preset.extraKick = [0, 12];
+      } else if (sub.includes("calypso")) {
+        preset.kick = [0, 6, 10, 14];
+        preset.snare = [4, 12];
+        preset.rim = [2, 8];
+        preset.hat = [0, 4, 8, 12];
+      } else if (sub.includes("metal")) {
+        preset.kick = [0, 2, 4, 6, 8, 10, 12, 14];
+        preset.snare = [4, 12];
+        preset.hat = [...Array(16).keys()];
+        preset.extraKick = [1, 3, 5, 7, 9, 11, 13, 15];
+      } else if (sub.includes("punk")) {
+        preset.kick = [0, 8, 10, 12];
+        preset.snare = [4, 12];
+        preset.hat = [...Array(16).keys()];
+      } else if (sub.includes("prog")) {
+        preset.kick = [0, 5, 7, 11];
+        preset.snare = [4, 12];
+        preset.hat = [0, 2, 4, 6, 8, 10, 12, 14];
+        preset.extraKick = [1, 3, 9, 13, 15];
+        preset.tomFill = [12, 13, 14, 15];
+      } else if (sub.includes("americana") || sub.includes("country") || sub.includes("folk")) {
+        preset.kick = [0, 8];
+        preset.snare = [4, 12];
+        preset.hat = [0, 4, 8, 12];
+      } else if (sub.includes("classical") || sub.includes("baroque") || sub.includes("neo")) {
+        preset.kick = [0];
+        preset.snare = [];
+        preset.hat = [];
+        preset.ride = [];
+        preset.extraKick = [];
+      } else if (style === "jazz") {
+        setSwing();
+      } else if (style === "funk") {
+        preset.kick = [0, 3, 7, 10, 12];
+        preset.snare = [4, 12];
+        preset.hat = [...Array(16).keys()];
+      } else if (style === "hiphop") {
+        preset.kick = [0, 9, 11];
+        preset.snare = [4, 12];
+        preset.hat = [0, 4, 8, 12];
+      } else if (style === "latin") {
+        preset.kick = [0, 7, 10, 14];
+        preset.snare = [4, 12];
+        preset.hat = [0, 4, 8, 12];
+      } else if (style === "reggae") {
+        preset.kick = [8];
+        preset.snare = [8];
+        preset.hat = [2, 6, 10, 14];
+      } else if (style === "electronic") {
+        preset.kick = [0, 4, 8, 12];
+        preset.snare = [4, 12];
+        preset.hat = [0, 2, 4, 6, 8, 10, 12, 14];
+        preset.extraKick = [2, 6, 10, 14];
+      }
+
+      if (main.includes("electronic") && rng() < 0.35) {
+        preset.hat = [...Array(preset.stepsPerBar).keys()];
+      }
+      return preset;
+    }
+
     function generateDrumPattern({
       bars,
       seed,
@@ -3620,7 +3758,6 @@
       const resolvedStyle = resolveDrumStyle(mainGenre, genre, style);
       const density = Math.max(0, Math.min(100, densityPercent)) / 100;
       const complexity = Math.max(0, Math.min(100, complexityPercent)) / 100;
-      const stepsPerBar = 16;
       const events = [];
       const notes = {
         kick: 36,
@@ -3636,9 +3773,20 @@
         tomHigh: 50
       };
 
-      const baseHats = density > 0.55 ? [...Array(16).keys()] : [0, 2, 4, 6, 8, 10, 12, 14];
-      const hatKeep = Math.min(1, 0.55 + density * 0.45);
-      const hatSteps = baseHats.filter(step => rng() < hatKeep);
+      const preset = getDrumPatternPreset(genre, mainGenre, resolvedStyle, rng);
+      const stepsPerBar = preset.stepsPerBar;
+      const stepBeat = 4 / stepsPerBar;
+      const hatKeep = Math.min(1, 0.45 + density * 0.55);
+      const hatSteps = (preset.hat || []).filter(step => rng() < hatKeep);
+      const rideSteps = preset.ride || [];
+      const kickSteps = preset.kick || [];
+      const snareSteps = preset.snare || [];
+      const rimSteps = preset.rim || [];
+      const clapSteps = preset.clap || [];
+      const ghostSteps = preset.ghost || [];
+      const openHatSteps = preset.openHat || [];
+      const extraKick = preset.extraKick || [];
+      const tomFill = preset.tomFill || [];
 
       function pushHit(step, note, velocity, durSteps = 1, barIndex, seen) {
         const key = `${step}-${note}`;
@@ -3646,95 +3794,72 @@
         seen.add(key);
         events.push({
           note,
-          startBeat: (barIndex * stepsPerBar + step) / 4,
-          duration: durSteps / 4,
+          startBeat: barIndex * 4 + step * stepBeat,
+          duration: durSteps * stepBeat,
           velocity
         });
       }
 
       for (let bar = 0; bar < bars; bar++) {
         const seen = new Set();
-        let kickSteps = [0, 8];
-        let snareSteps = [4, 12];
-        let hatNote = notes.closedHat;
-        let rideSteps = [];
-        let extraKick = [2, 6, 9, 13, 15];
+        const hatNote = preset.hatNote || notes.closedHat;
 
-        if (resolvedStyle === "jazz") {
-          kickSteps = [0, 8];
-          snareSteps = [];
-          rideSteps = [0, 4, 6, 8, 12, 14];
-          hatNote = notes.ride;
-        } else if (resolvedStyle === "funk") {
-          kickSteps = [0, 3, 7, 10, 12];
-          snareSteps = [4, 12];
-          extraKick = [2, 6, 9, 13, 15];
-        } else if (resolvedStyle === "hiphop") {
-          kickSteps = [0, 10];
-          snareSteps = [4, 12];
-          extraKick = [7, 13];
-        } else if (resolvedStyle === "electronic") {
-          kickSteps = [0, 4, 8, 12];
-          snareSteps = [4, 12];
-          extraKick = [2, 6, 10, 14];
-        } else if (resolvedStyle === "reggae") {
-          kickSteps = [8];
-          snareSteps = [8];
-          hatNote = notes.closedHat;
-        } else if (resolvedStyle === "latin") {
-          kickSteps = [0, 7, 10, 14];
-          snareSteps = [4, 12];
-          extraKick = [3, 6, 9, 13];
-        } else if (resolvedStyle === "blues") {
-          kickSteps = [0, 8];
-          snareSteps = [4, 12];
-        } else if (resolvedStyle === "pop") {
-          kickSteps = [0, 8, 10];
-          snareSteps = [4, 12];
-        }
-
-        if (resolvedStyle === "jazz") {
-          rideSteps.forEach(step => pushHit(step, notes.ride, 78, 1, bar, seen));
-          pushHit(4, notes.closedHat, 70, 1, bar, seen);
-          pushHit(12, notes.closedHat, 70, 1, bar, seen);
-          kickSteps.forEach(step => pushHit(step, notes.kick, 60, 1, bar, seen));
-        } else if (resolvedStyle === "reggae") {
-          [2, 6, 10, 14].forEach(step => pushHit(step, notes.closedHat, 78, 1, bar, seen));
-          kickSteps.forEach(step => pushHit(step, notes.kick, 84, 1, bar, seen));
-          snareSteps.forEach(step => pushHit(step, notes.snare, 92, 1, bar, seen));
+        if (rideSteps.length) {
+          rideSteps.forEach(step => {
+            if (rng() < hatKeep + 0.15) {
+              pushHit(step, notes.ride, preset.velocities.ride, 1, bar, seen);
+            }
+          });
+          [Math.round(stepsPerBar * 0.25), Math.round(stepsPerBar * 0.75)].forEach(step => {
+            if (step >= 0 && step < stepsPerBar) {
+              pushHit(step, notes.closedHat, preset.velocities.hat, 1, bar, seen);
+            }
+          });
         } else {
-          hatSteps.forEach(step => pushHit(step, hatNote, 72, 1, bar, seen));
-          kickSteps.forEach(step => pushHit(step, notes.kick, 96, 1, bar, seen));
-          snareSteps.forEach(step => pushHit(step, notes.snare, 100, 1, bar, seen));
+          hatSteps.forEach(step => pushHit(step, hatNote, preset.velocities.hat, 1, bar, seen));
         }
+
+        kickSteps.forEach(step => pushHit(step, notes.kick, preset.velocities.kick, 1, bar, seen));
+        snareSteps.forEach(step => pushHit(step, notes.snare, preset.velocities.snare, 1, bar, seen));
+        rimSteps.forEach(step => pushHit(step, notes.rim, preset.velocities.rim, 1, bar, seen));
+        clapSteps.forEach(step => pushHit(step, notes.clap, preset.velocities.clap, 1, bar, seen));
 
         extraKick.forEach(step => {
-          if (rng() < density * 0.4) {
-            pushHit(step, notes.kick, 82, 1, bar, seen);
+          if (rng() < density * 0.45) {
+            pushHit(step, notes.kick, Math.round(preset.velocities.kick * 0.85), 1, bar, seen);
           }
         });
 
-        if (complexity > 0.35 && rng() < complexity * 0.5) {
-          const ghostSteps = [2, 6, 10, 14];
-          ghostSteps.forEach(step => {
-            if (rng() < complexity * 0.4) {
-              pushHit(step, notes.snare, 60, 1, bar, seen);
+        ghostSteps.forEach(step => {
+          if (rng() < complexity * 0.6) {
+            pushHit(step, notes.snare, preset.velocities.ghost, 1, bar, seen);
+          }
+        });
+
+        openHatSteps.forEach(step => {
+          if (rng() < density * 0.5) {
+            pushHit(step, notes.openHat, preset.velocities.openHat, 2, bar, seen);
+          }
+        });
+
+        if (!openHatSteps.length && density > 0.65 && rng() < density) {
+          const step = stepsPerBar - 2;
+          if (step >= 0) {
+            pushHit(step, notes.openHat, preset.velocities.openHat, 2, bar, seen);
+          }
+        }
+
+        if (bar === 0 && rng() < 0.35 + density * 0.2) {
+          pushHit(0, notes.crash, 92, Math.max(1, Math.round(stepsPerBar / 4)), bar, seen);
+        }
+
+        if (complexity > 0.55 && rng() < complexity * 0.5 && bar === bars - 1) {
+          const fillSteps = tomFill.length ? tomFill : [stepsPerBar - 4, stepsPerBar - 3, stepsPerBar - 2, stepsPerBar - 1];
+          fillSteps.forEach((step, index) => {
+            const tomNote = [notes.tomLow, notes.tomMid, notes.tomHigh, notes.tomMid][index % 4] || notes.tomLow;
+            if (step >= 0 && step < stepsPerBar) {
+              pushHit(step, tomNote, 85, 1, bar, seen);
             }
-          });
-        }
-
-        if (density > 0.6 && rng() < density) {
-          pushHit(14, notes.openHat, 88, 2, bar, seen);
-        }
-
-        if (rng() < 0.3 && bar === 0) {
-          pushHit(0, notes.crash, 92, 4, bar, seen);
-        }
-
-        if (complexity > 0.55 && rng() < complexity * 0.4 && bar === bars - 1) {
-          [12, 13, 14, 15].forEach((step, index) => {
-            const tomNote = [notes.tomLow, notes.tomMid, notes.tomHigh, notes.tomMid][index] || notes.tomLow;
-            pushHit(step, tomNote, 85, 1, bar, seen);
           });
         }
       }
@@ -6656,6 +6781,7 @@
       "- Enter (in $eed): Import $eed.",
       "- B: Generate bass.",
       "- M: Generate melody.",
+      "- D: Generate drums.",
       "- Click clips: Jump to that point and audition the chord/bass/melody.",
       "- $ong button: Toggle $ong mode (auto-bass + auto-melody).",
       ""
@@ -6879,6 +7005,12 @@
         if (!melodyGenerate) return;
         event.preventDefault();
         melodyGenerate.click();
+        return;
+      } else if ((event.key === "d" || event.key === "D") && !isCtrl) {
+        if (event.target === seedInput) return;
+        if (!drumGenerate) return;
+        event.preventDefault();
+        drumGenerate.click();
         return;
       } else if (event.key === " ") {
         event.preventDefault();
