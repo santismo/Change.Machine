@@ -1117,9 +1117,9 @@
             <label>
               <div class="label-row">
                 <span>Melody color</span>
-                <span class="readout inline" id="melodyColorReadout">50%</span>
+                <span class="readout inline" id="melodyColorReadout">10%</span>
               </div>
-              <input id="melodyColor" type="range" min="0" max="100" value="50" />
+              <input id="melodyColor" type="range" min="0" max="100" value="10" />
             </label>
             <label>
               <div class="label-row">
@@ -3724,7 +3724,7 @@
       if (melodyChannelSelect) melodyChannelSelect.value = "3";
       if (melodyDensityInput) melodyDensityInput.value = "60";
       if (melodyMovementInput) melodyMovementInput.value = "55";
-      if (melodyColorInput) melodyColorInput.value = "50";
+      if (melodyColorInput) melodyColorInput.value = "10";
       if (melodyFillsInput) melodyFillsInput.value = "45";
       if (melodySubdivisionDensityInput) melodySubdivisionDensityInput.value = "55";
       if (melodySubdivisionInput) melodySubdivisionInput.value = "even";
@@ -5631,6 +5631,7 @@
       "- Play: Listen with a sine synth (loops).",
       "- Download .mid: Save the MIDI file.",
       "- MIDI Out: Enable WebMIDI output (Chrome).",
+      "- Route: Select MIDI in/out ports (default Logic Pro Virtual In/Out).",
       "- Import $eed: Load the current $eed value.",
       "- Copy $eed: Copy the current $eed.",
       "- Random $eed: Randomizes $eed and settings.",
@@ -5639,6 +5640,7 @@
       "- Melody: Generate a melody line in $ong mode.",
       "- Random bass / Random melody: Randomize track controls and regenerate.",
       "- Reset: Restore default settings.",
+      "- Click clips: Jump the playhead and audition that chord/bass/melody.",
       "",
       "HOTKEYS",
       "- Space: Play/Stop (global).",
@@ -5647,7 +5649,9 @@
       "- R: Random $eed.",
       "- Enter (in $eed): Import $eed.",
       "- B: Generate bass.",
+      "- M: Generate melody.",
       "- Click clips: Jump to that point and audition the chord/bass/melody.",
+      "- $ong button: Toggle $ong mode (auto-bass + auto-melody).",
       "",
       "UNDER CONSTRUCTION",
       "- Expanded MIDI I/O options.",
@@ -5855,6 +5859,12 @@
         if (!bassGenerate) return;
         event.preventDefault();
         bassGenerate.click();
+        return;
+      } else if ((event.key === "m" || event.key === "M") && !isCtrl) {
+        if (event.target === seedInput) return;
+        if (!melodyGenerate) return;
+        event.preventDefault();
+        melodyGenerate.click();
         return;
       } else if (event.key === " ") {
         event.preventDefault();
