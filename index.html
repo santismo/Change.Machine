@@ -191,9 +191,14 @@
       grid-row: 3;
     }
 
+    .song-mode #drumPanel {
+      grid-column: 1;
+      grid-row: 4;
+    }
+
     .song-mode #timelinePanel {
       grid-column: 2;
-      grid-row: 1 / span 3;
+      grid-row: 1 / span 4;
     }
 
     .panel {
@@ -664,6 +669,14 @@
       display: block;
     }
 
+    .drum-panel {
+      display: none;
+    }
+
+    .song-mode .drum-panel {
+      display: block;
+    }
+
     .midi-velocity input[type="range"] {
       width: 110px;
     }
@@ -790,7 +803,8 @@
 
     .clip.selected,
     .bass-clip.selected,
-    .melody-clip.selected {
+    .melody-clip.selected,
+    .drum-clip.selected {
       border-color: rgba(var(--accent-rgb), 0.9);
       box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.45);
     }
@@ -823,6 +837,19 @@
     }
 
     .song-mode .melody-track {
+      display: block;
+    }
+
+    .drum-track {
+      display: none;
+      height: 74px;
+      margin-top: 8px;
+      background-image:
+        repeating-linear-gradient(90deg, rgba(var(--glow-rgb), 0.18) 0, rgba(var(--glow-rgb), 0.18) 1px, transparent 1px, transparent var(--bar-px)),
+        repeating-linear-gradient(90deg, rgba(var(--glow-rgb), 0.05) 0, rgba(var(--glow-rgb), 0.05) 1px, transparent 1px, transparent var(--beat-px));
+    }
+
+    .song-mode .drum-track {
       display: block;
     }
 
@@ -874,6 +901,31 @@
       border-color: rgba(var(--glow-rgb), 0.95);
       box-shadow: 0 0 14px rgba(var(--glow-rgb), 0.45);
       background: linear-gradient(135deg, rgba(var(--glow-rgb), 0.45), rgba(0, 0, 0, 0));
+    }
+
+    .drum-clip {
+      position: absolute;
+      top: 0;
+      height: 16px;
+      border: 1px solid rgba(var(--border-rgb), 0.5);
+      border-left-width: 2px;
+      border-left-color: rgba(var(--muted-rgb), 0.85);
+      background: linear-gradient(135deg, rgba(var(--muted-rgb), 0.24), rgba(0, 0, 0, 0));
+      color: var(--text);
+      padding: 2px 4px;
+      font-size: 9px;
+      line-height: 1.1;
+      text-shadow: 0 0 4px rgba(var(--glow-rgb), 0.4);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+
+    .drum-clip.active {
+      border-color: rgba(var(--muted-rgb), 0.95);
+      box-shadow: 0 0 12px rgba(var(--muted-rgb), 0.45);
+      background: linear-gradient(135deg, rgba(var(--muted-rgb), 0.4), rgba(0, 0, 0, 0));
     }
 
     .timeline-scroll {
@@ -967,6 +1019,14 @@
 
       .melody-clip {
         height: 22px;
+      }
+
+      .drum-track {
+        height: 64px;
+      }
+
+      .drum-clip {
+        height: 14px;
       }
     }
   </style>
@@ -1227,6 +1287,52 @@
           </div>
         </section>
 
+        <section class="panel drum-panel" id="drumPanel">
+          <div class="panel-top">
+            <button id="drumGenerate" class="header-button">Drums</button>
+            <div class="panel-top-actions">
+              <div class="volume-control">
+                <span>VOL</span>
+                <input id="drumVolume" type="range" min="0" max="100" value="100" />
+              </div>
+              <button id="drumLoopMode" class="secondary small-toggle">Loop</button>
+              <button id="drumMute" class="secondary icon-toggle" aria-pressed="false" title="Mute drums">M</button>
+              <button id="drumCollapse" class="secondary">▾</button>
+            </div>
+          </div>
+          <div class="controls drum-controls">
+            <label>
+              <div class="label-row">
+                <span>Drum density</span>
+                <span class="readout inline" id="drumDensityReadout">55%</span>
+              </div>
+              <input id="drumDensity" type="range" min="0" max="100" value="55" />
+            </label>
+            <label>
+              <div class="label-row">
+                <span>Drum complexity</span>
+                <span class="readout inline" id="drumComplexityReadout">45%</span>
+              </div>
+              <input id="drumComplexity" type="range" min="0" max="100" value="45" />
+            </label>
+            <label>
+              Drum style
+              <select id="drumStyle">
+                <option value="auto">Auto (genre)</option>
+                <option value="rock">Rock</option>
+                <option value="pop">Pop</option>
+                <option value="funk">Funk</option>
+                <option value="jazz">Jazz</option>
+                <option value="hiphop">Hip-hop</option>
+                <option value="blues">Blues</option>
+                <option value="latin">Latin</option>
+                <option value="electronic">Electronic</option>
+                <option value="reggae">Reggae</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
         <section class="panel" id="timelinePanel">
           <div class="button-row" id="mainActions">
             <button id="play">Play</button>
@@ -1251,6 +1357,7 @@
             <div id="track" class="track chord-track"></div>
             <div id="bassTrack" class="track bass-track"></div>
             <div id="melodyTrack" class="track melody-track"></div>
+            <div id="drumTrack" class="track drum-track"></div>
           </div>
           <div class="timeline-scroll">
             <input id="timelineScroll" type="range" min="0" max="0" value="0" />
@@ -2755,6 +2862,24 @@
       return `${name}${octave}`;
     }
 
+    const drumNoteLabels = {
+      36: "K",
+      38: "S",
+      37: "R",
+      39: "CL",
+      42: "HH",
+      46: "OH",
+      49: "CR",
+      51: "RD",
+      45: "LT",
+      47: "MT",
+      50: "HT"
+    };
+
+    function drumLabelFromMidi(note) {
+      return drumNoteLabels[note] || noteLabelFromMidi(note);
+    }
+
     function clampToRange(note, min, max) {
       let value = note;
       while (value > max) value -= 12;
@@ -3466,6 +3591,157 @@
       return melodyNotes;
     }
 
+    function resolveDrumStyle(mainGenre, subGenre, styleOverride) {
+      if (styleOverride && styleOverride !== "auto") return styleOverride;
+      const key = `${mainGenre || ""} ${subGenre || ""}`.toLowerCase();
+      if (key.includes("jazz") || key.includes("bebop") || key.includes("fusion") || key.includes("gypsy")) return "jazz";
+      if (key.includes("funk")) return "funk";
+      if (key.includes("hip") || key.includes("hop") || key.includes("lofi")) return "hiphop";
+      if (key.includes("blues")) return "blues";
+      if (key.includes("latin") || key.includes("bossa") || key.includes("samba") || key.includes("calypso")) return "latin";
+      if (key.includes("reggae") || key.includes("rega")) return "reggae";
+      if (key.includes("electronic") || key.includes("dubstep") || key.includes("edm") || key.includes("house") || key.includes("techno")) return "electronic";
+      if (key.includes("metal") || key.includes("punk") || key.includes("hardcore")) return "rock";
+      if (key.includes("rock") || key.includes("prog") || key.includes("americana") || key.includes("country")) return "rock";
+      if (key.includes("soul") || key.includes("rnb") || key.includes("neo-soul")) return "funk";
+      return "pop";
+    }
+
+    function generateDrumPattern({
+      bars,
+      seed,
+      densityPercent,
+      complexityPercent,
+      style,
+      genre,
+      mainGenre
+    }) {
+      const rng = makeRng(`${seed}-drums`);
+      const resolvedStyle = resolveDrumStyle(mainGenre, genre, style);
+      const density = Math.max(0, Math.min(100, densityPercent)) / 100;
+      const complexity = Math.max(0, Math.min(100, complexityPercent)) / 100;
+      const stepsPerBar = 16;
+      const events = [];
+      const notes = {
+        kick: 36,
+        snare: 38,
+        rim: 37,
+        clap: 39,
+        closedHat: 42,
+        openHat: 46,
+        ride: 51,
+        crash: 49,
+        tomLow: 45,
+        tomMid: 47,
+        tomHigh: 50
+      };
+
+      const baseHats = density > 0.55 ? [...Array(16).keys()] : [0, 2, 4, 6, 8, 10, 12, 14];
+      const hatKeep = Math.min(1, 0.55 + density * 0.45);
+      const hatSteps = baseHats.filter(step => rng() < hatKeep);
+
+      function pushHit(step, note, velocity, durSteps = 1, barIndex, seen) {
+        const key = `${step}-${note}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        events.push({
+          note,
+          startBeat: (barIndex * stepsPerBar + step) / 4,
+          duration: durSteps / 4,
+          velocity
+        });
+      }
+
+      for (let bar = 0; bar < bars; bar++) {
+        const seen = new Set();
+        let kickSteps = [0, 8];
+        let snareSteps = [4, 12];
+        let hatNote = notes.closedHat;
+        let rideSteps = [];
+        let extraKick = [2, 6, 9, 13, 15];
+
+        if (resolvedStyle === "jazz") {
+          kickSteps = [0, 8];
+          snareSteps = [];
+          rideSteps = [0, 4, 6, 8, 12, 14];
+          hatNote = notes.ride;
+        } else if (resolvedStyle === "funk") {
+          kickSteps = [0, 3, 7, 10, 12];
+          snareSteps = [4, 12];
+          extraKick = [2, 6, 9, 13, 15];
+        } else if (resolvedStyle === "hiphop") {
+          kickSteps = [0, 10];
+          snareSteps = [4, 12];
+          extraKick = [7, 13];
+        } else if (resolvedStyle === "electronic") {
+          kickSteps = [0, 4, 8, 12];
+          snareSteps = [4, 12];
+          extraKick = [2, 6, 10, 14];
+        } else if (resolvedStyle === "reggae") {
+          kickSteps = [8];
+          snareSteps = [8];
+          hatNote = notes.closedHat;
+        } else if (resolvedStyle === "latin") {
+          kickSteps = [0, 7, 10, 14];
+          snareSteps = [4, 12];
+          extraKick = [3, 6, 9, 13];
+        } else if (resolvedStyle === "blues") {
+          kickSteps = [0, 8];
+          snareSteps = [4, 12];
+        } else if (resolvedStyle === "pop") {
+          kickSteps = [0, 8, 10];
+          snareSteps = [4, 12];
+        }
+
+        if (resolvedStyle === "jazz") {
+          rideSteps.forEach(step => pushHit(step, notes.ride, 78, 1, bar, seen));
+          pushHit(4, notes.closedHat, 70, 1, bar, seen);
+          pushHit(12, notes.closedHat, 70, 1, bar, seen);
+          kickSteps.forEach(step => pushHit(step, notes.kick, 60, 1, bar, seen));
+        } else if (resolvedStyle === "reggae") {
+          [2, 6, 10, 14].forEach(step => pushHit(step, notes.closedHat, 78, 1, bar, seen));
+          kickSteps.forEach(step => pushHit(step, notes.kick, 84, 1, bar, seen));
+          snareSteps.forEach(step => pushHit(step, notes.snare, 92, 1, bar, seen));
+        } else {
+          hatSteps.forEach(step => pushHit(step, hatNote, 72, 1, bar, seen));
+          kickSteps.forEach(step => pushHit(step, notes.kick, 96, 1, bar, seen));
+          snareSteps.forEach(step => pushHit(step, notes.snare, 100, 1, bar, seen));
+        }
+
+        extraKick.forEach(step => {
+          if (rng() < density * 0.4) {
+            pushHit(step, notes.kick, 82, 1, bar, seen);
+          }
+        });
+
+        if (complexity > 0.35 && rng() < complexity * 0.5) {
+          const ghostSteps = [2, 6, 10, 14];
+          ghostSteps.forEach(step => {
+            if (rng() < complexity * 0.4) {
+              pushHit(step, notes.snare, 60, 1, bar, seen);
+            }
+          });
+        }
+
+        if (density > 0.6 && rng() < density) {
+          pushHit(14, notes.openHat, 88, 2, bar, seen);
+        }
+
+        if (rng() < 0.3 && bar === 0) {
+          pushHit(0, notes.crash, 92, 4, bar, seen);
+        }
+
+        if (complexity > 0.55 && rng() < complexity * 0.4 && bar === bars - 1) {
+          [12, 13, 14, 15].forEach((step, index) => {
+            const tomNote = [notes.tomLow, notes.tomMid, notes.tomHigh, notes.tomMid][index] || notes.tomLow;
+            pushHit(step, tomNote, 85, 1, bar, seen);
+          });
+        }
+      }
+
+      return events;
+    }
+
     function writeVarInt(value) {
       let buffer = value & 0x7f;
       const bytes = [];
@@ -3480,7 +3756,17 @@
       return bytes;
     }
 
-    function buildMidi(chords, bpm, bassNotes = [], melodyNotes = [], chordChannel = getChordChannel(), bassChannel = getBassChannel(), melodyChannel = getMelodyChannel()) {
+    function buildMidi(
+      chords,
+      bpm,
+      bassNotes = [],
+      melodyNotes = [],
+      drumNotes = [],
+      chordChannel = getChordChannel(),
+      bassChannel = getBassChannel(),
+      melodyChannel = getMelodyChannel(),
+      drumChannel = getDrumChannel()
+    ) {
       const ticksPerBeat = 480;
       const track = [];
       const events = [];
@@ -3518,6 +3804,14 @@
         const durationTicks = Math.max(1, Math.round(note.duration * ticksPerBeat));
         events.push({ tick: startTick, order: 1, bytes: [0x90 + melodyChannel, note.note, 96] });
         events.push({ tick: startTick + durationTicks, order: 0, bytes: [0x80 + melodyChannel, note.note, 0] });
+      });
+
+      drumNotes.forEach(hit => {
+        const startTick = Math.max(0, Math.round(hit.startBeat * ticksPerBeat));
+        const durationTicks = Math.max(1, Math.round(hit.duration * ticksPerBeat));
+        const velocity = Math.max(1, Math.min(127, hit.velocity || 90));
+        events.push({ tick: startTick, order: 1, bytes: [0x90 + drumChannel, hit.note, velocity] });
+        events.push({ tick: startTick + durationTicks, order: 0, bytes: [0x80 + drumChannel, hit.note, 0] });
       });
 
       events.sort((a, b) => (a.tick - b.tick) || (a.order - b.order));
@@ -3664,9 +3958,52 @@
       });
     }
 
+    function renderDrumTrack() {
+      if (!drumTrack) return;
+      drumTrack.innerHTML = "";
+      drumClips = [];
+      activeDrumClips.clear();
+      if (!currentDrums || !currentDrums.length) {
+        drumTrack.style.height = "64px";
+        return;
+      }
+      const laneMap = new Map([
+        [49, 0],
+        [51, 1],
+        [46, 2],
+        [42, 3],
+        [39, 4],
+        [38, 5],
+        [36, 6],
+        [50, 7],
+        [47, 8],
+        [45, 9]
+      ]);
+      const laneCount = Math.max(7, Math.max(...currentDrums.map(hit => laneMap.get(hit.note) ?? 6)) + 1);
+      const laneHeight = 14;
+      const padY = 6;
+      const trackHeight = padY * 2 + laneHeight * laneCount;
+      drumTrack.style.height = `${trackHeight}px`;
+      currentDrums.forEach((hit, index) => {
+        const clip = document.createElement("div");
+        clip.className = "drum-clip";
+        clip.style.left = `${hit.startBeat * currentBeatPx}px`;
+        clip.style.width = `${Math.max(currentBeatPx * 0.35, hit.duration * currentBeatPx)}px`;
+        const laneIndex = laneMap.get(hit.note) ?? 6;
+        clip.style.top = `${padY + laneIndex * laneHeight}px`;
+        clip.textContent = drumLabelFromMidi(hit.note);
+        clip.addEventListener("click", (event) => {
+          event.preventDefault();
+          auditionDrumHit(hit.note, hit.duration, hit.startBeat, index, hit.velocity);
+        });
+        drumTrack.appendChild(clip);
+        drumClips.push({ el: clip, startBeat: hit.startBeat, duration: hit.duration, note: hit.note, velocity: hit.velocity });
+      });
+    }
+
     function rebuildMidi() {
       if (!currentChords.length) return;
-      currentMidi = buildMidi(currentChords, currentBpm, currentBass, currentMelody);
+      currentMidi = buildMidi(currentChords, currentBpm, currentBass, currentMelody, currentDrums);
       if (midiBlobUrl) {
         URL.revokeObjectURL(midiBlobUrl);
       }
@@ -3738,6 +4075,33 @@
       rebuildMidi();
     }
 
+    function getDrumSeedLabel(baseSeed, forceNew = false) {
+      if (forceNew) {
+        drumSeedCounter += 1;
+        const rand = Math.random().toString(36).slice(2, 6);
+        return `${baseSeed}|drum-${drumSeedCounter}-${rand}`;
+      }
+      return `${baseSeed}|drum-${drumSeedCounter}`;
+    }
+
+    function regenerateDrums(forceNew = false) {
+      if (!currentChords.length) return;
+      const seedLabel = currentSeed || seedInput?.value || "$eed-drums";
+      const drumSeed = getDrumSeedLabel(seedLabel, forceNew);
+      currentDrums = generateDrumPattern({
+        bars: parseInt(barsInput?.value, 10) || 4,
+        seed: drumSeed,
+        densityPercent: parseInt(drumDensityInput?.value, 10) || 0,
+        complexityPercent: parseInt(drumComplexityInput?.value, 10) || 0,
+        style: drumStyleInput?.value || "auto",
+        genre: genreSub?.value || "base",
+        mainGenre: genreMain?.value || ""
+      });
+      drumAutoRegenerate = true;
+      renderDrumTrack();
+      rebuildMidi();
+    }
+
     function sanitizeFileName(name) {
       const cleaned = name
         .toString()
@@ -3756,12 +4120,16 @@
       bassSeedCounter = 0;
       melodyAutoRegenerate = false;
       melodySeedCounter = 0;
+      drumAutoRegenerate = false;
+      drumSeedCounter = 0;
       chordMuted = false;
       bassMuted = false;
       melodyMuted = false;
+      drumMuted = false;
       updateMuteButton(chordMute, chordMuted);
       updateMuteButton(bassMute, bassMuted);
       updateMuteButton(melodyMute, melodyMuted);
+      updateMuteButton(drumMute, drumMuted);
       if (keySelect) keySelect.value = "random";
       if (genreMain && genreSub) populateGenreSelects("core", "base");
       if (tempoInput) tempoInput.value = "110";
@@ -3791,12 +4159,17 @@
       if (melodySubdivisionInput) melodySubdivisionInput.value = "even";
       if (melodyStyleInput) melodyStyleInput.value = "auto";
       if (melodyRegisterInput) melodyRegisterInput.value = "72";
+      if (drumDensityInput) drumDensityInput.value = "55";
+      if (drumComplexityInput) drumComplexityInput.value = "45";
+      if (drumStyleInput) drumStyleInput.value = "auto";
       if (chordVolumeInput) chordVolumeInput.value = "100";
       if (bassVolumeInput) bassVolumeInput.value = "100";
       if (melodyVolumeInput) melodyVolumeInput.value = "100";
+      if (drumVolumeInput) drumVolumeInput.value = "100";
       setTrackPlaybackMode("chord", "loop");
       setTrackPlaybackMode("bass", "loop");
       setTrackPlaybackMode("melody", "loop");
+      setTrackPlaybackMode("drum", "loop");
       updateTrackGains();
       if (midiEnabled) {
         midiEnabled = false;
@@ -3841,6 +4214,7 @@
     const chordLoopButton = document.getElementById("chordLoopMode");
     const bassLoopButton = document.getElementById("bassLoopMode");
     const melodyLoopButton = document.getElementById("melodyLoopMode");
+    const drumLoopButton = document.getElementById("drumLoopMode");
     const barsInput = document.getElementById("bars");
     const densityInput = document.getElementById("density");
     const colorInput = document.getElementById("color");
@@ -3897,10 +4271,15 @@
     const chordVolumeInput = document.getElementById("chordVolume");
     const bassVolumeInput = document.getElementById("bassVolume");
     const melodyVolumeInput = document.getElementById("melodyVolume");
+    const drumVolumeInput = document.getElementById("drumVolume");
     const melodyPanel = document.getElementById("melodyPanel");
     const melodyGenerate = document.getElementById("melodyGenerate");
     const melodyCollapse = document.getElementById("melodyCollapse");
     const melodyMute = document.getElementById("melodyMute");
+    const drumPanel = document.getElementById("drumPanel");
+    const drumGenerate = document.getElementById("drumGenerate");
+    const drumCollapse = document.getElementById("drumCollapse");
+    const drumMute = document.getElementById("drumMute");
     const melodyDensityInput = document.getElementById("melodyDensity");
     const melodyDensityReadout = document.getElementById("melodyDensityReadout");
     const melodyMovementInput = document.getElementById("melodyMovement");
@@ -3917,11 +4296,17 @@
     const melodyRegisterInput = document.getElementById("melodyRegister");
     const melodyRegisterReadout = document.getElementById("melodyRegisterReadout");
     const melodyRandom = document.getElementById("melodyRandom");
+    const drumDensityInput = document.getElementById("drumDensity");
+    const drumDensityReadout = document.getElementById("drumDensityReadout");
+    const drumComplexityInput = document.getElementById("drumComplexity");
+    const drumComplexityReadout = document.getElementById("drumComplexityReadout");
+    const drumStyleInput = document.getElementById("drumStyle");
     const timelineView = document.getElementById("timelineView");
     const ruler = document.getElementById("ruler");
     const track = document.getElementById("track");
     const bassTrack = document.getElementById("bassTrack");
     const melodyTrack = document.getElementById("melodyTrack");
+    const drumTrack = document.getElementById("drumTrack");
     const selectToggle = document.getElementById("selectToggle");
     const timelineScroll = document.getElementById("timelineScroll");
     const progressionText = document.getElementById("progressionText");
@@ -4195,6 +4580,12 @@
       if (barsInput) barsInput.value = String(4 + Math.floor(rng() * 29));
       if (tempoInput) tempoInput.value = String(60 + Math.floor(rng() * 141));
       if (subdivisionInput) subdivisionInput.value = rng() < 0.5 ? "even" : "mixed";
+      if (drumDensityInput) drumDensityInput.value = String(Math.floor(rng() * 101));
+      if (drumComplexityInput) drumComplexityInput.value = String(Math.floor(rng() * 101));
+      if (drumStyleInput) {
+        const styles = Array.from(drumStyleInput.options).map(option => option.value);
+        drumStyleInput.value = styles[Math.floor(rng() * styles.length)] || "auto";
+      }
       updateReadouts();
     }
 
@@ -4496,6 +4887,7 @@
     let currentChords = [];
     let currentBass = [];
     let currentMelody = [];
+    let currentDrums = [];
     let chordTextTokens = [];
     let chordStarts = [];
     let chordClips = [];
@@ -4503,6 +4895,8 @@
     let activeBassClips = new Set();
     let melodyClips = [];
     let activeMelodyClips = new Set();
+    let drumClips = [];
+    let activeDrumClips = new Set();
     let currentChordIndex = -1;
     let currentFileName = "change.machine.mid";
     let currentBpm = 110;
@@ -4511,6 +4905,8 @@
     let bassSeedCounter = 0;
     let melodyAutoRegenerate = false;
     let melodySeedCounter = 0;
+    let drumAutoRegenerate = false;
+    let drumSeedCounter = 0;
     let currentSeed = "";
     let seedIsRandom = false;
     let seedDrivesSettings = false;
@@ -4522,10 +4918,12 @@
     let chordBusGain = null;
     let bassBusGain = null;
     let melodyBusGain = null;
+    let drumBusGain = null;
     let analyser = null;
     let oscData = null;
     let oscCtx = null;
     let oscAnimId = null;
+    let drumNoiseBuffer = null;
     const activeOscillators = new Set();
     const DEFAULT_GAIN = 0.18;
     let midiAccess = null;
@@ -4540,22 +4938,26 @@
     const activeChordNotes = new Map();
     const activeBassNotes = new Map();
     const activeMelodyNotes = new Map();
+    const activeDrumNotes = new Map();
     let chordNoteCounter = 0;
     let songMode = false;
     let chordMuted = false;
     let bassMuted = false;
     let melodyMuted = false;
+    let drumMuted = false;
     let alignRaf = null;
     let suppressPanelAlignment = false;
     let chordPlaybackMode = "loop";
     let bassPlaybackMode = "loop";
     let melodyPlaybackMode = "loop";
+    let drumPlaybackMode = "loop";
     let selectionMode = false;
     let selectionBox = null;
     let selectionStart = null;
     const selectedChordIndices = new Set();
     const selectedBassIndices = new Set();
     const selectedMelodyIndices = new Set();
+    const selectedDrumIndices = new Set();
     let currentKeyUsed = "C";
 
     function getMidiVelocity() {
@@ -4586,6 +4988,10 @@
       return Math.max(0, Math.min(15, value - 1));
     }
 
+    function getDrumChannel() {
+      return 3;
+    }
+
     function ensureAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -4594,9 +5000,11 @@
         chordBusGain = audioContext.createGain();
         bassBusGain = audioContext.createGain();
         melodyBusGain = audioContext.createGain();
+        drumBusGain = audioContext.createGain();
         chordBusGain.connect(masterGain);
         bassBusGain.connect(masterGain);
         melodyBusGain.connect(masterGain);
+        drumBusGain.connect(masterGain);
         updateTrackGains();
         analyser = audioContext.createAnalyser();
         analyser.fftSize = 1024;
@@ -4629,6 +5037,9 @@
       } else if (track === "melody") {
         melodyPlaybackMode = value;
         if (melodyLoopButton) melodyLoopButton.textContent = value === "loop" ? "Loop" : "Regen";
+      } else if (track === "drum") {
+        drumPlaybackMode = value;
+        if (drumLoopButton) drumLoopButton.textContent = value === "loop" ? "Loop" : "Regen";
       }
     }
 
@@ -4642,6 +5053,9 @@
       }
       if (melodyBusGain) {
         melodyBusGain.gain.setValueAtTime(getTrackGainValue(melodyVolumeInput), audioContext.currentTime);
+      }
+      if (drumBusGain) {
+        drumBusGain.gain.setValueAtTime(getTrackGainValue(drumVolumeInput), audioContext.currentTime);
       }
     }
 
@@ -4778,6 +5192,21 @@
       activeMelodyNotes.delete(note);
     }
 
+    function sendDrumNoteOn(note, velocity = 96) {
+      if (!midiEnabled || !midiOutput) return;
+      const channel = getDrumChannel();
+      midiOutput.send([0x90 + channel, note, velocity]);
+      activeDrumNotes.set(note, channel);
+    }
+
+    function sendDrumNoteOff(note) {
+      if (!midiEnabled || !midiOutput) return;
+      const channel = activeDrumNotes.get(note);
+      const resolved = channel === undefined ? getDrumChannel() : channel;
+      midiOutput.send([0x80 + resolved, note, 0]);
+      activeDrumNotes.delete(note);
+    }
+
     function sendChordPanic() {
       if (!midiEnabled || !midiOutput) {
         activeChordNotes.clear();
@@ -4799,6 +5228,7 @@
         activeChordNotes.clear();
         activeBassNotes.clear();
         activeMelodyNotes.clear();
+        activeDrumNotes.clear();
         return;
       }
       const channels = new Set();
@@ -4815,9 +5245,14 @@
         midiOutput.send([0x80 + channel, note, 0]);
         channels.add(channel);
       });
+      activeDrumNotes.forEach((channel, note) => {
+        midiOutput.send([0x80 + channel, note, 0]);
+        channels.add(channel);
+      });
       channels.add(getChordChannel());
       channels.add(getBassChannel());
       channels.add(getMelodyChannel());
+      channels.add(getDrumChannel());
       channels.forEach(channel => {
         midiOutput.send([0xB0 + channel, 64, 0]);
         midiOutput.send([0xB0 + channel, 123, 0]);
@@ -4826,6 +5261,7 @@
       activeChordNotes.clear();
       activeBassNotes.clear();
       activeMelodyNotes.clear();
+      activeDrumNotes.clear();
     }
 
 
@@ -4867,6 +5303,20 @@
       }, Math.max(0, startMs));
       const offId = setTimeout(() => {
         sendMelodyNoteOff(note);
+      }, Math.max(0, startMs + durationMs));
+      playTimers.push(onId, offId);
+    }
+
+    function scheduleMidiDrum(note, startMs, durationMs, velocity = 90) {
+      if (!midiOutput || drumMuted) return;
+      const onId = setTimeout(() => {
+        const base = Math.max(1, Math.min(127, velocity));
+        const scaled = Math.max(1, Math.min(127, Math.round((base / 127) * getMidiVelocity())));
+        const vel = scaled;
+        sendDrumNoteOn(note, vel);
+      }, Math.max(0, startMs));
+      const offId = setTimeout(() => {
+        sendDrumNoteOff(note);
       }, Math.max(0, startMs + durationMs));
       playTimers.push(onId, offId);
     }
@@ -5048,6 +5498,98 @@
       osc.stop(startTime + durationSec + 0.03);
     }
 
+    function getNoiseBuffer() {
+      if (drumNoiseBuffer) return drumNoiseBuffer;
+      const length = audioContext.sampleRate;
+      const buffer = audioContext.createBuffer(1, length, audioContext.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      drumNoiseBuffer = buffer;
+      return buffer;
+    }
+
+    function playNoiseBurst(startTime, durationSec, filterType, cutoff, gainLevel) {
+      const source = audioContext.createBufferSource();
+      const filter = audioContext.createBiquadFilter();
+      const gain = audioContext.createGain();
+      source.buffer = getNoiseBuffer();
+      filter.type = filterType;
+      filter.frequency.setValueAtTime(cutoff, startTime);
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(gainLevel, startTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + durationSec);
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(drumBusGain || masterGain);
+      activeOscillators.add(source);
+      source.onended = () => {
+        activeOscillators.delete(source);
+      };
+      source.start(startTime);
+      source.stop(startTime + durationSec + 0.02);
+    }
+
+    function playDrumHitAtTime(note, startTime, durationSec, velocity = 90) {
+      if (drumMuted) return;
+      const vel = Math.max(0.1, Math.min(1, velocity / 127));
+      if (note === 36) {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(120, startTime);
+        osc.frequency.exponentialRampToValueAtTime(50, startTime + 0.2);
+        gain.gain.setValueAtTime(0.0001, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.35 * vel, startTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.3);
+        osc.connect(gain);
+        gain.connect(drumBusGain || masterGain);
+        activeOscillators.add(osc);
+        osc.onended = () => {
+          activeOscillators.delete(osc);
+        };
+        osc.start(startTime);
+        osc.stop(startTime + 0.35);
+        return;
+      }
+
+      if (note === 38 || note === 39 || note === 37) {
+        playNoiseBurst(startTime, 0.18, "bandpass", 1800, 0.32 * vel);
+        return;
+      }
+
+      if (note === 42 || note === 46) {
+        playNoiseBurst(startTime, 0.12, "highpass", 6000, 0.18 * vel);
+        return;
+      }
+
+      if (note === 49 || note === 51) {
+        playNoiseBurst(startTime, 0.35, "highpass", 5000, 0.22 * vel);
+        return;
+      }
+
+      if (note === 45 || note === 47 || note === 50) {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const base = note === 45 ? 130 : note === 47 ? 160 : 190;
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(base, startTime);
+        osc.frequency.exponentialRampToValueAtTime(base * 0.85, startTime + 0.2);
+        gain.gain.setValueAtTime(0.0001, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.25 * vel, startTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.25);
+        osc.connect(gain);
+        gain.connect(drumBusGain || masterGain);
+        activeOscillators.add(osc);
+        osc.onended = () => {
+          activeOscillators.delete(osc);
+        };
+        osc.start(startTime);
+        osc.stop(startTime + 0.28);
+      }
+    }
+
     function clearTimers() {
       playTimers.forEach(id => clearTimeout(id));
       playTimers = [];
@@ -5115,6 +5657,7 @@
       selectedChordIndices.clear();
       selectedBassIndices.clear();
       selectedMelodyIndices.clear();
+      selectedDrumIndices.clear();
       chordClips.forEach((clip) => {
         if (clip) clip.classList.remove("selected");
       });
@@ -5122,6 +5665,9 @@
         if (item && item.el) item.el.classList.remove("selected");
       });
       melodyClips.forEach((item) => {
+        if (item && item.el) item.el.classList.remove("selected");
+      });
+      drumClips.forEach((item) => {
         if (item && item.el) item.el.classList.remove("selected");
       });
     }
@@ -5165,6 +5711,14 @@
           selectedMelodyIndices.add(index);
         }
       });
+      drumClips.forEach((item, index) => {
+        if (!item || !item.el) return;
+        const clipRect = item.el.getBoundingClientRect();
+        if (rectsIntersect(boxRect, clipRect)) {
+          item.el.classList.add("selected");
+          selectedDrumIndices.add(index);
+        }
+      });
     }
 
     function clearMelodyHighlights() {
@@ -5186,6 +5740,28 @@
       } else {
         item.el.classList.remove("active");
         activeMelodyClips.delete(index);
+      }
+    }
+
+    function clearDrumHighlights() {
+      if (!drumClips.length) return;
+      drumClips.forEach(item => {
+        if (item && item.el) {
+          item.el.classList.remove("active");
+        }
+      });
+      activeDrumClips.clear();
+    }
+
+    function setDrumClipActive(index, active) {
+      const item = drumClips[index];
+      if (!item || !item.el) return;
+      if (active) {
+        item.el.classList.add("active");
+        activeDrumClips.add(index);
+      } else {
+        item.el.classList.remove("active");
+        activeDrumClips.delete(index);
       }
     }
 
@@ -5269,6 +5845,38 @@
           sendMelodyNoteOff(note);
           if (clipIndex !== null && clipIndex !== undefined) {
             setMelodyClipActive(clipIndex, false);
+          }
+        }, duration * beatSec * 1000);
+        playTimers.push(offId);
+      }
+      scrollTimelineToBeat(startBeat);
+    }
+
+    function auditionDrumHit(note, duration, startBeat, clipIndex, velocity = 90) {
+      if (!currentChords.length) return;
+      stopPlayback();
+      const chordIndex = findChordIndexAtBeat(startBeat);
+      setActiveChord(chordIndex);
+      clearDrumHighlights();
+      if (clipIndex !== null && clipIndex !== undefined) {
+        setDrumClipActive(clipIndex, true);
+      }
+      ensureAudio();
+      restoreMasterGain();
+      ensureMidi();
+      const bpm = getPlaybackBpm();
+      const beatSec = 60 / bpm;
+      if (!drumMuted) {
+        playDrumHitAtTime(note, audioContext.currentTime, duration * beatSec, velocity);
+      }
+      if (midiEnabled && !drumMuted) {
+        const base = Math.max(1, Math.min(127, velocity));
+        const vel = Math.max(1, Math.min(127, Math.round((base / 127) * getMidiVelocity())));
+        sendDrumNoteOn(note, vel);
+        const offId = setTimeout(() => {
+          sendDrumNoteOff(note);
+          if (clipIndex !== null && clipIndex !== undefined) {
+            setDrumClipActive(clipIndex, false);
           }
         }, duration * beatSec * 1000);
         playTimers.push(offId);
@@ -5384,10 +5992,38 @@
       rebuildMidi();
     }
 
+    function regenerateSelectedDrums() {
+      if (!selectedDrumIndices.size) {
+        regenerateDrums(true);
+        return;
+      }
+      const seedLabel = currentSeed || seedInput?.value || "$eed-drums";
+      const drumSeed = getDrumSeedLabel(seedLabel, true);
+      const freshDrums = generateDrumPattern({
+        bars: parseInt(barsInput?.value, 10) || 4,
+        seed: drumSeed,
+        densityPercent: parseInt(drumDensityInput?.value, 10) || 0,
+        complexityPercent: parseInt(drumComplexityInput?.value, 10) || 0,
+        style: drumStyleInput?.value || "auto",
+        genre: genreSub?.value || "base",
+        mainGenre: genreMain?.value || ""
+      });
+      selectedDrumIndices.forEach((index) => {
+        if (!currentDrums[index] || !freshDrums[index]) return;
+        currentDrums[index].note = freshDrums[index].note;
+        currentDrums[index].velocity = freshDrums[index].velocity;
+      });
+      drumAutoRegenerate = true;
+      renderDrumTrack();
+      clearSelection();
+      rebuildMidi();
+    }
+
     function stopPlayback() {
       clearTimers();
       clearBassHighlights();
       clearMelodyHighlights();
+      clearDrumHighlights();
       if (!isPlaying) {
         sendAllNotesOff();
         return;
@@ -5434,6 +6070,7 @@
       setActiveChord(safeStart);
       clearBassHighlights();
       clearMelodyHighlights();
+      clearDrumHighlights();
       restoreMasterGain();
       if (midiEnabled) {
         ensureMidi();
@@ -5494,13 +6131,39 @@
         });
       }
 
+      if (currentDrums.length) {
+        const baseMs = performance.now();
+        currentDrums.forEach((hit, index) => {
+          if (hit.startBeat < startBeat) return;
+          const offsetBeat = hit.startBeat - startBeat;
+          const startTime = audioContext.currentTime + offsetBeat * beatSec;
+          playDrumHitAtTime(hit.note, startTime, hit.duration * beatSec, hit.velocity || 90);
+          if (midiEnabled) {
+            scheduleMidiDrum(
+              hit.note,
+              (baseMs + offsetBeat * beatSec * 1000) - performance.now(),
+              hit.duration * beatSec * 1000,
+              hit.velocity || 90
+            );
+          }
+          const onId = setTimeout(() => {
+            setDrumClipActive(index, true);
+          }, Math.max(0, offsetBeat * beatSec * 1000));
+          const offId = setTimeout(() => {
+            setDrumClipActive(index, false);
+          }, Math.max(0, offsetBeat * beatSec * 1000 + hit.duration * beatSec * 1000));
+          playTimers.push(onId, offId);
+        });
+      }
+
       const endTimer = setTimeout(() => {
         if (!isPlaying) return;
         if (chordPlaybackMode === "regen") {
           const keepAlign = songMode
             && chordPanel?.classList.contains("collapsed")
             && bassPanel?.classList.contains("collapsed")
-            && melodyPanel?.classList.contains("collapsed");
+            && melodyPanel?.classList.contains("collapsed")
+            && drumPanel?.classList.contains("collapsed");
           if (keepAlign) {
             suppressPanelAlignment = true;
           }
@@ -5515,6 +6178,9 @@
           }
           if (songMode && melodyPlaybackMode === "regen") {
             regenerateMelody(true);
+          }
+          if (songMode && drumPlaybackMode === "regen") {
+            regenerateDrums(true);
           }
         }
         startPlayback(0);
@@ -5563,6 +6229,12 @@
       }
       if (melodyRegisterReadout && melodyRegisterInput) {
         melodyRegisterReadout.textContent = noteLabelFromMidi(parseInt(melodyRegisterInput.value, 10) || 72);
+      }
+      if (drumDensityReadout && drumDensityInput) {
+        drumDensityReadout.textContent = `${drumDensityInput.value}%`;
+      }
+      if (drumComplexityReadout && drumComplexityInput) {
+        drumComplexityReadout.textContent = `${drumComplexityInput.value}%`;
       }
       if (midiEnabled) {
         tempoReadout.textContent = externalBpm
@@ -5615,6 +6287,7 @@
       if (previousSeed && previousSeed !== seedLabel) {
         bassSeedCounter = 0;
         melodySeedCounter = 0;
+        drumSeedCounter = 0;
       }
       currentChords = chords;
       if (bassAutoRegenerate) {
@@ -5655,6 +6328,20 @@
       } else {
         currentMelody = [];
       }
+      if (drumAutoRegenerate) {
+        const drumSeed = getDrumSeedLabel(seedLabel, false);
+        currentDrums = generateDrumPattern({
+          bars,
+          seed: drumSeed,
+          densityPercent: parseInt(drumDensityInput?.value, 10) || 0,
+          complexityPercent: parseInt(drumComplexityInput?.value, 10) || 0,
+          style: drumStyleInput?.value || "auto",
+          genre,
+          mainGenre: genreMain?.value || ""
+        });
+      } else {
+        currentDrums = [];
+      }
       currentSeed = seedLabel;
       if (seedInput) {
         seedInput.value = seedLabel;
@@ -5680,6 +6367,9 @@
       if (melodyTrack) {
         melodyTrack.style.width = `${totalWidth}px`;
       }
+      if (drumTrack) {
+        drumTrack.style.width = `${totalWidth}px`;
+      }
       const maxScroll = Math.max(0, timelineView.scrollWidth - timelineView.clientWidth);
       timelineScroll.max = String(maxScroll);
       timelineScroll.value = "0";
@@ -5697,6 +6387,7 @@
       chordClips = [];
       bassClips = [];
       melodyClips = [];
+      drumClips = [];
       currentChordIndex = -1;
 
       chords.forEach((chord, index) => {
@@ -5717,6 +6408,7 @@
 
       renderBassTrack();
       renderMelodyTrack();
+      renderDrumTrack();
       clearSelection();
       schedulePanelAlignment();
 
@@ -5902,6 +6594,16 @@
       });
     }
 
+    if (drumGenerate) {
+      drumGenerate.addEventListener("click", () => {
+        if (selectedDrumIndices.size) {
+          regenerateSelectedDrums();
+        } else {
+          regenerateDrums(true);
+        }
+      });
+    }
+
     const helpContent = [
       "SYSTEM: Generates chord progressions and exports MIDI blocks.",
       "",
@@ -5910,7 +6612,7 @@
       "- Genre + Subgenre: Pick a main style and a specific variant.",
       "- Tempo: BPM for playback and MIDI.",
       "- MIDI out: WebMIDI in Chrome, defaults to Logic Pro Virtual In/Out, follows external clock when detected.",
-      "- MIDI velocity: Sets chord + bass + melody velocity while MIDI Out is on.",
+      "- MIDI velocity: Sets chord + bass + melody + drum velocity while MIDI Out is on.",
       "- Bars: Length of the progression.",
       "- Harmonic density (%): How busy the harmony feels.",
       "- Color (%): How extended the chord voicings are (higher = more extensions).",
@@ -5920,12 +6622,13 @@
       "- Subdivision mode: Even only or even + triplet feel.",
       "- Bass controls ($ong): Density, movement, color, fills, subdivision, style, register, and channel.",
       "- Melody controls ($ong): Density, movement, color, fills, subdivision, style, register, and channel.",
+      "- Drum controls ($ong): Density, complexity, style (GM drums on MIDI ch 4).",
       "- Bass fills (%): Scale-based fill notes (0% none, 100% every chord).",
       "- Melody fills (%): Melodic fill notes within the chord scale.",
       "- Track VOL: Per-panel audio level (hidden when MIDI Out is on).",
-      "- Select: Drag a box over clips, then hit ¢hords/฿ass/Melody to replace only the selection.",
+      "- Select: Drag a box over clips, then hit ¢hords/฿ass/Melody/Drums to replace only the selection.",
       "- Loop/Regen (per track): Loop that track or regenerate it at the end.",
-      "- Mute icons: Toggle chord/bass/melody audio + MIDI.",
+      "- Mute icons: Toggle chord/bass/melody/drums audio + MIDI.",
       "- $eed: Paste any text to make a repeatable progression, or share creative $eeds with others.",
       "",
       "BUTTONS",
@@ -5940,6 +6643,7 @@
       "- Copy progression: Copy chord text.",
       "- ฿ass: Generate a bass line in $ong mode.",
       "- Melody: Generate a melody line in $ong mode.",
+      "- Drums: Generate a drum pattern in $ong mode.",
       "- Random bass / Random melody: Randomize track controls and regenerate.",
       "- Reset: Restore default settings.",
       "- Click clips: Jump the playhead and audition that chord/bass/melody.",
@@ -6021,7 +6725,8 @@
       const panels = [
         { panel: chordPanel, track: track },
         { panel: bassPanel, track: bassTrack },
-        { panel: melodyPanel, track: melodyTrack }
+        { panel: melodyPanel, track: melodyTrack },
+        { panel: drumPanel, track: drumTrack }
       ];
       if (!songMode) {
         panels.forEach(({ panel }) => {
@@ -6047,6 +6752,8 @@
           panel.style.removeProperty("--track-shift");
           return;
         }
+        panel.classList.remove("align-track");
+        panel.style.setProperty("--track-shift", "0px");
         const panelRect = panel.getBoundingClientRect();
         const trackRect = track.getBoundingClientRect();
         if (!panelRect.height || !trackRect.height) return;
@@ -6095,19 +6802,25 @@
         regenerateBass(true);
         melodyAutoRegenerate = true;
         regenerateMelody(true);
+        drumAutoRegenerate = true;
+        regenerateDrums(true);
         setPanelCollapsedState(chordPanel, chordCollapse, true);
         setPanelCollapsedState(bassPanel, bassCollapse, true);
         setPanelCollapsedState(melodyPanel, melodyCollapse, true);
+        setPanelCollapsedState(drumPanel, drumCollapse, true);
         schedulePanelAlignment();
       } else if (themeSlider) {
         stopPlayback();
         sendAllNotesOff();
         bassAutoRegenerate = false;
         melodyAutoRegenerate = false;
+        drumAutoRegenerate = false;
         currentBass = [];
         currentMelody = [];
+        currentDrums = [];
         renderBassTrack();
         renderMelodyTrack();
+        renderDrumTrack();
         rebuildMidi();
         themeSlider.value = "0";
         applyThemeMix(0);
@@ -6367,6 +7080,29 @@
         }
       });
     }
+    if (drumDensityInput) {
+      drumDensityInput.addEventListener("input", () => {
+        updateReadouts();
+        if (drumAutoRegenerate) {
+          regenerateDrums();
+        }
+      });
+    }
+    if (drumComplexityInput) {
+      drumComplexityInput.addEventListener("input", () => {
+        updateReadouts();
+        if (drumAutoRegenerate) {
+          regenerateDrums();
+        }
+      });
+    }
+    if (drumStyleInput) {
+      drumStyleInput.addEventListener("change", () => {
+        if (drumAutoRegenerate) {
+          regenerateDrums();
+        }
+      });
+    }
     if (bassRandom) {
       bassRandom.addEventListener("click", () => {
         randomizeBassControls();
@@ -6395,6 +7131,12 @@
       });
       setTrackPlaybackMode("melody", "loop");
     }
+    if (drumLoopButton) {
+      drumLoopButton.addEventListener("click", () => {
+        setTrackPlaybackMode("drum", drumPlaybackMode === "loop" ? "regen" : "loop");
+      });
+      setTrackPlaybackMode("drum", "loop");
+    }
     if (chordVolumeInput) {
       chordVolumeInput.addEventListener("input", () => {
         updateTrackGains();
@@ -6407,6 +7149,11 @@
     }
     if (melodyVolumeInput) {
       melodyVolumeInput.addEventListener("input", () => {
+        updateTrackGains();
+      });
+    }
+    if (drumVolumeInput) {
+      drumVolumeInput.addEventListener("input", () => {
         updateTrackGains();
       });
     }
@@ -6661,6 +7408,15 @@
       });
     }
 
+    if (drumMute) {
+      updateMuteButton(drumMute, drumMuted);
+      drumMute.addEventListener("click", () => {
+        drumMuted = !drumMuted;
+        updateMuteButton(drumMute, drumMuted);
+        sendAllNotesOff();
+      });
+    }
+
     if (chordCollapse) {
       chordCollapse.addEventListener("click", () => {
         setPanelCollapsed(chordPanel, chordCollapse);
@@ -6676,6 +7432,12 @@
     if (melodyCollapse) {
       melodyCollapse.addEventListener("click", () => {
         setPanelCollapsed(melodyPanel, melodyCollapse);
+      });
+    }
+
+    if (drumCollapse) {
+      drumCollapse.addEventListener("click", () => {
+        setPanelCollapsed(drumPanel, drumCollapse);
       });
     }
 
