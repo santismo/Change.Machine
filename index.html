@@ -38,6 +38,9 @@
       height: 100%;
       margin: 0;
       background: radial-gradient(1200px 800px at 20% 20%, var(--bg-2) 0%, var(--bg) 45%, var(--bg-3) 100%);
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      background-size: cover;
       color: var(--text);
       font-family: "Share Tech Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       letter-spacing: 0.02em;
@@ -46,7 +49,7 @@
     body::before {
       content: "";
       position: fixed;
-      inset: 0;
+      inset: -25%;
       background:
         repeating-linear-gradient(180deg, transparent 0px, transparent 2px, var(--scanline) 3px),
         radial-gradient(800px 600px at 70% 10%, rgba(var(--glow-rgb), 0.15), transparent 60%),
@@ -55,16 +58,18 @@
       opacity: 0.6;
       pointer-events: none;
       animation: scan 7s linear infinite;
+      will-change: transform;
     }
 
     body::after {
       content: "";
       position: fixed;
-      inset: 0;
+      inset: -25%;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
       opacity: 0.2;
       pointer-events: none;
       mix-blend-mode: soft-light;
+      will-change: transform;
     }
 
     @keyframes scan {
@@ -167,7 +172,8 @@
     .song-mode .grid {
       grid-template-columns: minmax(220px, 0.9fr) 2.1fr;
       align-items: start;
-      row-gap: 2px;
+      row-gap: 0;
+      column-gap: 16px;
     }
 
     .song-mode #chordPanel {
@@ -307,7 +313,12 @@
     }
 
     .song-mode .panel.collapsed + .panel.collapsed {
-      margin-top: -2px;
+      margin-top: -1px;
+      border-top: 0;
+    }
+
+    .song-mode .panel.align-track {
+      transform: translateY(var(--track-shift, 0px));
     }
 
     .help-button {
@@ -571,6 +582,28 @@
 
     .midi-on .midi-velocity {
       display: flex;
+    }
+
+    .tempo-inline {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 9px;
+      color: var(--muted);
+      padding: 2px 4px;
+      border: 1px solid rgba(var(--border-rgb), 0.2);
+      border-radius: 4px;
+    }
+
+    .tempo-inline input[type="range"] {
+      width: 120px;
+    }
+
+    .tempo-readout {
+      color: var(--text);
+      font-size: 10px;
+      min-width: 56px;
+      text-align: right;
     }
 
     .midi-route {
@@ -919,11 +952,6 @@
               </div>
             </label>
             <label>
-              Tempo (BPM)
-              <input id="tempo" type="range" min="60" max="200" value="110" />
-              <span class="readout" id="tempoReadout">110 BPM</span>
-            </label>
-            <label>
               Bars
               <input id="bars" type="range" min="4" max="32" value="4" />
               <span class="readout" id="barsReadout">4 bars</span>
@@ -1149,6 +1177,11 @@
               <span>Vel</span>
               <input id="midiVelocity" type="range" min="1" max="127" value="60" />
               <span id="midiVelocityValue" class="midi-velocity-value">60</span>
+            </div>
+            <div class="tempo-inline">
+              <span>Tempo</span>
+              <input id="tempo" type="range" min="60" max="200" value="110" />
+              <span id="tempoReadout" class="tempo-readout">110 BPM</span>
             </div>
           </div>
           <h2>Progression</h2>
@@ -4444,6 +4477,7 @@
     let chordMuted = false;
     let bassMuted = false;
     let melodyMuted = false;
+    let alignRaf = null;
 
     function getMidiVelocity() {
       if (!midiVelocity) return 96;
@@ -5404,6 +5438,7 @@
 
       renderBassTrack();
       renderMelodyTrack();
+      schedulePanelAlignment();
 
       chordTextTokens = buildProgressionTokens(chords);
       progressionText.value = formatProgressionTextFromTokens(chordTextTokens);
@@ -5575,7 +5610,7 @@
       "- Genre + Subgenre: Pick a main style and a specific variant.",
       "- Tempo: BPM for playback and MIDI.",
       "- MIDI out: WebMIDI in Chrome, defaults to Logic Pro Virtual In/Out, follows external clock when detected.",
-      "- MIDI velocity: Sets chord + bass velocity while MIDI Out is on.",
+      "- MIDI velocity: Sets chord + bass + melody velocity while MIDI Out is on.",
       "- Bars: Length of the progression.",
       "- Harmonic density (%): How busy the harmony feels.",
       "- Color (%): How extended the chord voicings are (higher = more extensions).",
@@ -5583,9 +5618,12 @@
       "- Modulation amount (%): Likelihood of key shifts.",
       "- Subdivision density (%): How often bars subdivide.",
       "- Subdivision mode: Even only or even + triplet feel.",
-      "- Bass controls ($ong): Density, movement, fills, subdivision, style, register, and channel.",
+      "- Bass controls ($ong): Density, movement, color, fills, subdivision, style, register, and channel.",
+      "- Melody controls ($ong): Density, movement, color, fills, subdivision, style, register, and channel.",
       "- Bass fills (%): Scale-based fill notes (0% none, 100% every chord).",
-      "- Mute icons: Toggle chord/bass audio + MIDI.",
+      "- Melody fills (%): Melodic fill notes within the chord scale.",
+      "- Track VOL: Per-panel audio level (hidden when MIDI Out is on).",
+      "- Mute icons: Toggle chord/bass/melody audio + MIDI.",
       "- $eed: Paste any text to make a repeatable progression, or share creative $eeds with others.",
       "",
       "BUTTONS",
@@ -5598,6 +5636,9 @@
       "- Random $eed: Randomizes $eed and settings.",
       "- Copy progression: Copy chord text.",
       "- ฿ass: Generate a bass line in $ong mode.",
+      "- Melody: Generate a melody line in $ong mode.",
+      "- Random bass / Random melody: Randomize track controls and regenerate.",
+      "- Reset: Restore default settings.",
       "",
       "HOTKEYS",
       "- Space: Play/Stop (global).",
@@ -5605,6 +5646,8 @@
       "- C: ¢hords (new progression).",
       "- R: Random $eed.",
       "- Enter (in $eed): Import $eed.",
+      "- B: Generate bass.",
+      "- Click clips: Jump to that point and audition the chord/bass/melody.",
       "",
       "UNDER CONSTRUCTION",
       "- Expanded MIDI I/O options.",
@@ -5660,12 +5703,63 @@
       if (!panel || !button) return;
       panel.classList.toggle("collapsed");
       button.textContent = panel.classList.contains("collapsed") ? "▸" : "▾";
+      schedulePanelAlignment();
     }
 
     function setPanelCollapsedState(panel, button, collapsed) {
       if (!panel || !button) return;
       panel.classList.toggle("collapsed", collapsed);
       button.textContent = collapsed ? "▸" : "▾";
+      schedulePanelAlignment();
+    }
+
+    function alignCollapsedPanels() {
+      const panels = [
+        { panel: chordPanel, track: track },
+        { panel: bassPanel, track: bassTrack },
+        { panel: melodyPanel, track: melodyTrack }
+      ];
+      if (!songMode) {
+        panels.forEach(({ panel }) => {
+          if (!panel) return;
+          panel.classList.remove("align-track");
+          panel.style.removeProperty("--track-shift");
+        });
+        return;
+      }
+      const anyExpanded = panels.some(({ panel }) => panel && !panel.classList.contains("collapsed"));
+      if (anyExpanded) {
+        panels.forEach(({ panel }) => {
+          if (!panel) return;
+          panel.classList.remove("align-track");
+          panel.style.removeProperty("--track-shift");
+        });
+        return;
+      }
+      panels.forEach(({ panel, track }) => {
+        if (!panel || !track) return;
+        if (!panel.classList.contains("collapsed")) {
+          panel.classList.remove("align-track");
+          panel.style.removeProperty("--track-shift");
+          return;
+        }
+        const panelRect = panel.getBoundingClientRect();
+        const trackRect = track.getBoundingClientRect();
+        if (!panelRect.height || !trackRect.height) return;
+        const panelCenter = panelRect.top + panelRect.height / 2;
+        const trackCenter = trackRect.top + trackRect.height / 2;
+        const delta = trackCenter - panelCenter;
+        panel.style.setProperty("--track-shift", `${delta}px`);
+        panel.classList.add("align-track");
+      });
+    }
+
+    function schedulePanelAlignment() {
+      if (alignRaf) cancelAnimationFrame(alignRaf);
+      alignRaf = requestAnimationFrame(() => {
+        alignRaf = null;
+        alignCollapsedPanels();
+      });
     }
 
     function updateMuteButton(button, muted) {
@@ -5699,10 +5793,21 @@
         setPanelCollapsedState(chordPanel, chordCollapse, true);
         setPanelCollapsedState(bassPanel, bassCollapse, true);
         setPanelCollapsedState(melodyPanel, melodyCollapse, true);
+        schedulePanelAlignment();
       } else if (themeSlider) {
+        stopPlayback();
+        sendAllNotesOff();
+        bassAutoRegenerate = false;
+        melodyAutoRegenerate = false;
+        currentBass = [];
+        currentMelody = [];
+        renderBassTrack();
+        renderMelodyTrack();
+        rebuildMidi();
         themeSlider.value = "0";
         applyThemeMix(0);
         setPanelCollapsedState(chordPanel, chordCollapse, false);
+        schedulePanelAlignment();
       }
     }
 
@@ -6062,6 +6167,7 @@
 
     window.addEventListener("resize", () => {
       resizeOscilloscope();
+      schedulePanelAlignment();
     });
 
     if (midiToggle) {
