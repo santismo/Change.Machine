@@ -1504,8 +1504,8 @@
             </div>
             <div class="tempo-inline">
               <span>Tempo</span>
-              <input id="tempo" type="range" min="60" max="200" value="110" />
-              <span id="tempoReadout" class="tempo-readout">110 BPM</span>
+              <input id="tempo" type="range" min="60" max="200" value="75" />
+              <span id="tempoReadout" class="tempo-readout">75 BPM</span>
             </div>
           </div>
           <h2>Progression</h2>
@@ -5395,7 +5395,7 @@
         populateGenreSelectsFor(melodyGenreMain, melodyGenreSub, genreMain.value, genreSub.value);
       }
       if (drumGenreMain && drumGenreSub) populateGenreSelectsFor(drumGenreMain, drumGenreSub, "core", "base");
-      if (tempoInput) tempoInput.value = "110";
+      if (tempoInput) tempoInput.value = "75";
       if (barsInput) barsInput.value = "4";
       if (formComplexityInput) formComplexityInput.value = "30";
       setFormEnabledState(false);
