@@ -2,7 +2,9 @@
 
 https://santismo.github.io/Change.Machine/
 
-<img width="1005" height="671" alt="Change Machine" src="https://github.com/user-attachments/assets/0c3a3579-2f96-46a3-9722-b0acdd5894e1" />
+<img width="1178" height="757" alt="Screenshot 2026-02-06 at 9 57 14 AM" src="https://github.com/user-attachments/assets/03b221dc-16b8-43b8-9472-6fe7ea8a4fdf" />
+
+<img width="1172" height="756" alt="Screenshot 2026-02-06 at 9 58 10 AM" src="https://github.com/user-attachments/assets/50787234-d2d1-4080-8546-5ed485c12ca5" />
 
 SYSTEM: Generates chord progressions and exports MIDI blocks.
 
