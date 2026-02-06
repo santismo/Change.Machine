@@ -1324,6 +1324,13 @@
             </label>
             <label>
               <div class="label-row">
+                <span>Bass rests</span>
+                <span class="readout inline" id="bassRestsReadout">50%</span>
+              </div>
+              <input id="bassRests" type="range" min="0" max="100" value="50" />
+            </label>
+            <label>
+              <div class="label-row">
                 <span>Bass subdivision density</span>
                 <span class="readout inline" id="bassSubdivisionDensityReadout">45%</span>
               </div>
@@ -1409,6 +1416,13 @@
                 <span class="readout inline" id="melodyFillsReadout">45%</span>
               </div>
               <input id="melodyFills" type="range" min="0" max="100" value="45" />
+            </label>
+            <label>
+              <div class="label-row">
+                <span>Melody rests</span>
+                <span class="readout inline" id="melodyRestsReadout">50%</span>
+              </div>
+              <input id="melodyRests" type="range" min="0" max="100" value="50" />
             </label>
             <label>
               <div class="label-row">
@@ -3570,6 +3584,7 @@
       densityPercent,
       movementPercent,
       fillPercent,
+      restPercent,
       colorPercent,
       subdivisionDensity,
       subdivisionMode,
@@ -3586,6 +3601,7 @@
           densityPercent,
           movementPercent,
           fillPercent,
+          restPercent,
           colorPercent,
           subdivisionDensity,
           subdivisionMode,
@@ -3607,6 +3623,7 @@
         const fills = applySectionAdjustments(fillPercent, adjustments.bass.fills, complexity);
         const color = applySectionAdjustments(colorPercent, adjustments.bass.color, complexity);
         const subdiv = applySectionAdjustments(subdivisionDensity, adjustments.bass.subdivision, complexity);
+        const rests = clampValue(restPercent ?? 50, 0, 100);
         const cacheKey = `${section.name}:${section.bars}`;
         const repeatAllowed = ["verse", "chorus", "pre"].includes(section.name) && complexity < 75;
         let sectionNotes = null;
@@ -3620,6 +3637,7 @@
             densityPercent: density,
             movementPercent: movement,
             fillPercent: fills,
+            restPercent: rests,
             colorPercent: color,
             subdivisionDensity: subdiv,
             subdivisionMode,
@@ -3647,6 +3665,7 @@
       densityPercent,
       movementPercent,
       fillPercent,
+      restPercent,
       colorPercent,
       subdivisionDensity,
       subdivisionMode,
@@ -3663,6 +3682,7 @@
           densityPercent,
           movementPercent,
           fillPercent,
+          restPercent,
           colorPercent,
           subdivisionDensity,
           subdivisionMode,
@@ -3679,11 +3699,28 @@
         const sectionChords = extractChordsForSection(chords, section.startBar, section.bars);
         if (!sectionChords.length) return;
         const adjustments = getFormSectionAdjustments(section.name);
-        const density = applySectionAdjustments(densityPercent, adjustments.melody.density, complexity);
-        const movement = applySectionAdjustments(movementPercent, adjustments.melody.movement, complexity);
-        const fills = applySectionAdjustments(fillPercent, adjustments.melody.fills, complexity);
-        const color = applySectionAdjustments(colorPercent, adjustments.melody.color, complexity);
-        const subdiv = applySectionAdjustments(subdivisionDensity, adjustments.melody.subdivision, complexity);
+        const isSolo = section.name === "solo";
+        const soloFactor = complexity / 100;
+        let density = applySectionAdjustments(densityPercent, adjustments.melody.density, complexity);
+        let movement = applySectionAdjustments(movementPercent, adjustments.melody.movement, complexity);
+        let fills = applySectionAdjustments(fillPercent, adjustments.melody.fills, complexity);
+        let color = applySectionAdjustments(colorPercent, adjustments.melody.color, complexity);
+        let subdiv = applySectionAdjustments(subdivisionDensity, adjustments.melody.subdivision, complexity);
+        let rests = clampValue(restPercent ?? 50, 0, 100);
+        let sectionRegister = register;
+        let sectionSubdivisionMode = subdivisionMode;
+        if (isSolo) {
+          density = clampValue(density + 26 + Math.round(soloFactor * 14), 0, 100);
+          movement = clampValue(movement + 34 + Math.round(soloFactor * 12), 0, 100);
+          fills = clampValue(fills + 30 + Math.round(soloFactor * 10), 0, 100);
+          color = clampValue(color + 22, 0, 100);
+          subdiv = clampValue(subdiv + 35, 0, 100);
+          sectionRegister = clampValue(register + 8 + Math.round(soloFactor * 8), 60, 90);
+          if (sectionSubdivisionMode === "even") {
+            sectionSubdivisionMode = "mixed";
+          }
+          rests = clampValue(rests - 15, 0, 100);
+        }
         const cacheKey = `${section.name}:${section.bars}`;
         const repeatAllowed = ["verse", "chorus", "pre"].includes(section.name) && complexity < 75;
         let sectionNotes = null;
@@ -3691,18 +3728,19 @@
           sectionNotes = cache.get(cacheKey).map(note => ({ ...note }));
         } else {
           const sectionSeed = `${seed}|melody|${section.name}`;
-          const sectionStyle = section.name === "solo" && style === "auto" ? "leap" : style;
+          const sectionStyle = isSolo && ["auto", "step", "motif"].includes(style) ? "leap" : style;
           sectionNotes = generateMelodyLine({
             chords: sectionChords,
             seed: sectionSeed,
             densityPercent: density,
             movementPercent: movement,
             fillPercent: fills,
+            restPercent: rests,
             colorPercent: color,
             subdivisionDensity: subdiv,
-            subdivisionMode,
+            subdivisionMode: sectionSubdivisionMode,
             style: sectionStyle,
-            register,
+            register: sectionRegister,
             genre,
             mainGenre
           });
@@ -3799,6 +3837,17 @@
     function buildFormSections(totalBars, complexityPercent, seed) {
       const complexity = clampValue(complexityPercent, 0, 100) / 100;
       const rng = makeRng(`${seed}|form-layout|${Math.round(complexityPercent)}`);
+      if (complexity >= 1) {
+        return [{
+          name: "solo",
+          bars: totalBars,
+          index: 0,
+          repeatGroup: 1,
+          occurrence: 1,
+          label: "Solo 1",
+          startBar: 0
+        }];
+      }
       const minSectionBars = complexity >= 0.75 ? 1 : 2;
       const wantIntro = totalBars >= 8 && (complexity < 0.15 || rng() < (0.55 + complexity * 0.25));
       const wantOutro = totalBars >= 8 && (complexity < 0.2 ? rng() < 0.6 : rng() < (0.35 + complexity * 0.35));
@@ -3832,7 +3881,7 @@
           { name: "chorus", weight: 1.0 },
           { name: "pre", weight: 0.2 + complexity * 0.8 },
           { name: "bridge", weight: 0.15 + complexity * 0.7 },
-          { name: "solo", weight: 0.2 + complexity * 1.05 }
+          { name: "solo", weight: 0.2 + complexity * 2.4 }
         ];
         if (last === "verse") {
           baseWeights.find(item => item.name === "chorus").weight += 0.4;
@@ -3853,6 +3902,20 @@
         }
         const next = pickWeighted(baseWeights);
         structure.push(next);
+      }
+
+      if (complexity >= 0.6 && !structure.some(entry => (typeof entry === "string" ? entry : entry.name) === "solo")) {
+        const coreIndices = structure
+          .map((entry, index) => ({ name: typeof entry === "string" ? entry : entry.name, index }))
+          .filter(item => !["intro", "outro", "solo"].includes(item.name))
+          .map(item => item.index);
+        if (coreIndices.length) {
+          const pickIndex = coreIndices[Math.floor(rng() * coreIndices.length)];
+          structure[pickIndex] = "solo";
+        } else {
+          const insertAt = Math.max(1, structure.length - (wantOutro ? 1 : 0));
+          structure.splice(insertAt, 0, "solo");
+        }
       }
 
       const hasName = (name) => structure.some(entry => (typeof entry === "string" ? entry : entry.name) === name);
@@ -3912,7 +3975,10 @@
       });
 
       let sumBars = sections.reduce((sum, section) => sum + section.bars, 0);
-      const removable = ["outro", "intro", "solo", "bridge", "pre"];
+      const removable = ["outro", "intro", "bridge", "pre"];
+      if (complexity < 0.6) {
+        removable.push("solo");
+      }
       removable.forEach(type => {
         if (sumBars <= totalBars) return;
         for (let i = sections.length - 1; i >= 0 && sumBars > totalBars; i--) {
@@ -4015,7 +4081,7 @@
       } else if (sectionName === "solo") {
         set("chord", { density: 15, color: 20, modulation: 10, subdivision: 12 });
         set("bass", { density: 15, movement: 22, color: 18, fills: 18, subdivision: 12 });
-        set("melody", { density: 28, movement: 25, color: 22, fills: 20, subdivision: 15 });
+        set("melody", { density: 38, movement: 32, color: 28, fills: 26, subdivision: 18 });
         set("drum", { density: 15, complexity: 18, fills: 18, ghost: 10 });
       } else if (sectionName === "outro") {
         set("chord", { density: -30, color: -10, subdivision: -15 });
@@ -4190,6 +4256,7 @@
           bassMovement: bassMovementInput?.value || "",
           bassColor: bassColorInput?.value || "",
           bassFills: bassFillsInput?.value || "",
+          bassRests: bassRestsInput?.value || "",
           bassSubdivisionDensity: bassSubdivisionDensityInput?.value || "",
           bassSubdivision: bassSubdivisionInput?.value || "",
           bassStyle: bassStyleInput?.value || "",
@@ -4198,6 +4265,7 @@
           melodyMovement: melodyMovementInput?.value || "",
           melodyColor: melodyColorInput?.value || "",
           melodyFills: melodyFillsInput?.value || "",
+          melodyRests: melodyRestsInput?.value || "",
           melodySubdivisionDensity: melodySubdivisionDensityInput?.value || "",
           melodySubdivision: melodySubdivisionInput?.value || "",
           melodyStyle: melodyStyleInput?.value || "",
@@ -4350,6 +4418,7 @@
       if (bassMovementInput) bassMovementInput.value = snapshot.controls.bassMovement;
       if (bassColorInput) bassColorInput.value = snapshot.controls.bassColor;
       if (bassFillsInput) bassFillsInput.value = snapshot.controls.bassFills;
+      if (bassRestsInput) bassRestsInput.value = snapshot.controls.bassRests || "50";
       if (bassSubdivisionDensityInput) bassSubdivisionDensityInput.value = snapshot.controls.bassSubdivisionDensity;
       if (bassSubdivisionInput) bassSubdivisionInput.value = snapshot.controls.bassSubdivision;
       if (bassStyleInput) bassStyleInput.value = snapshot.controls.bassStyle;
@@ -4359,6 +4428,7 @@
       if (melodyMovementInput) melodyMovementInput.value = snapshot.controls.melodyMovement;
       if (melodyColorInput) melodyColorInput.value = snapshot.controls.melodyColor;
       if (melodyFillsInput) melodyFillsInput.value = snapshot.controls.melodyFills;
+      if (melodyRestsInput) melodyRestsInput.value = snapshot.controls.melodyRests || "50";
       if (melodySubdivisionDensityInput) melodySubdivisionDensityInput.value = snapshot.controls.melodySubdivisionDensity;
       if (melodySubdivisionInput) melodySubdivisionInput.value = snapshot.controls.melodySubdivision;
       if (melodyStyleInput) melodyStyleInput.value = snapshot.controls.melodyStyle;
@@ -4648,12 +4718,45 @@
       return segments;
     }
 
+    function applySegmentRests(segments, restChance, rng, options = {}) {
+      const chance = clampValue(restChance || 0, 0, 0.8);
+      if (!segments.length || chance <= 0) return segments;
+      const avoidFirst = options.avoidFirst !== false;
+      const avoidLast = !!options.avoidLast;
+      const minNotes = Math.max(1, options.minNotes || 1);
+      let played = 0;
+      const lastIndex = segments.length - 1;
+      const output = segments.map((segment, index) => {
+        if (segment.fill) {
+          played += 1;
+          return { ...segment, rest: false };
+        }
+        if ((avoidFirst && index === 0) || (avoidLast && index === lastIndex)) {
+          played += 1;
+          return { ...segment, rest: false };
+        }
+        const rest = rng() < chance;
+        if (!rest) played += 1;
+        return { ...segment, rest };
+      });
+      if (played < minNotes) {
+        for (let i = 0; i < output.length; i += 1) {
+          if (output[i].fill) continue;
+          output[i].rest = false;
+          played += 1;
+          if (played >= minNotes) break;
+        }
+      }
+      return output;
+    }
+
     function generateBassLine({
       chords,
       seed,
       densityPercent,
       movementPercent,
       fillPercent,
+      restPercent,
       colorPercent,
       subdivisionDensity,
       subdivisionMode,
@@ -4672,8 +4775,10 @@
       const subdivisionAdjusted = clampValue(subdivisionDensity + profile.subdivisionBias, 0, 100);
       const registerAdjusted = clampValue(register + profile.registerBias, 24, 60);
       const fillAdjusted = clampValue((fillPercent || 0) + profile.fillBias, 0, 100);
+      const restAdjusted = clampValue(restPercent ?? 50, 0, 100);
       const colorAdjusted = clampValue(colorPercent ?? 50, 0, 100);
       const fillChance = fillAdjusted / 100;
+      const restChance = clampValue(restAdjusted / 100 * 0.75, 0, 0.75);
       const bassNotes = [];
       const rangeMin = Math.max(20, Math.min(60, registerAdjusted));
       const rangeMax = rangeMin + 12;
@@ -4684,6 +4789,12 @@
         const allowTriplets = subdivisionMode !== "even";
         const durations = chooseBassDurations(duration, densityAdjusted, subdivisionAdjusted, allowTriplets, rng);
         const segments = applyBassFills(durations, fillChance, allowTriplets, rng);
+        const segmentsWithRests = applySegmentRests(
+          segments,
+          restChance,
+          rng,
+          { avoidFirst: restAdjusted < 75, minNotes: 1 }
+        );
         const baseRoot = chord.notes[0] ?? 36;
         const quality = chord.quality || "maj";
         const rootPc = ((baseRoot % 12) + 12) % 12;
@@ -4699,8 +4810,12 @@
         const chordTonesNoMaj7 = filterAvoidMaj7(chordTones, rootPc);
 
         let current = root;
-        segments.forEach((segment, hitIndex) => {
-          const isLastHit = hitIndex === segments.length - 1;
+        segmentsWithRests.forEach((segment, hitIndex) => {
+          if (segment.rest) {
+            beatCursor += segment.dur;
+            return;
+          }
+          const isLastHit = hitIndex === segmentsWithRests.length - 1;
           const isFill = segment.fill;
           let note = root;
           if (hitIndex === 0) {
@@ -4848,8 +4963,22 @@
     }
 
     function chooseMelodyDurations(duration, densityPercent, subdivisionDensity, allowTriplets, rng) {
-      const boosted = Math.min(100, (densityPercent || 0) + 15);
-      return chooseBassDurations(duration, boosted, subdivisionDensity, allowTriplets, rng);
+      const density = Math.max(0, Math.min(100, densityPercent)) / 100;
+      const subdiv = Math.max(0, Math.min(100, subdivisionDensity)) / 100;
+      let hits = 1;
+      if (density > 0.3 && rng() < density) hits += 1;
+      if (density > 0.55 && rng() < density) hits += 1;
+      if (density > 0.75 && rng() < density) hits += 2;
+      if (density > 0.9 && rng() < density) hits += 2;
+      if (allowTriplets && subdiv > 0.5 && rng() < subdiv) {
+        hits = Math.max(hits, 3);
+      }
+      if (subdiv > 0.75 && rng() < subdiv) {
+        hits = Math.max(hits, Math.round(duration * 6));
+      }
+      hits = Math.max(1, Math.min(hits, Math.round(duration * 8)));
+      const slice = duration / hits;
+      return Array.from({ length: hits }, () => slice);
     }
 
     function pickMelodyPalette(colorPercent, rng) {
@@ -4868,6 +4997,7 @@
       densityPercent,
       movementPercent,
       fillPercent,
+      restPercent,
       colorPercent,
       subdivisionDensity,
       subdivisionMode,
@@ -4886,8 +5016,10 @@
       const subdivisionAdjusted = clampValue(subdivisionDensity + profile.subdivisionBias, 0, 100);
       const registerAdjusted = clampValue(register + profile.registerBias, 50, 90);
       const fillAdjusted = clampValue((fillPercent || 0) + profile.fillBias, 0, 100);
+      const restAdjusted = clampValue(restPercent ?? 50, 0, 100);
       const colorAdjusted = clampValue(colorPercent ?? 50, 0, 100);
       const fillChance = fillAdjusted / 100;
+      const restChance = clampValue(restAdjusted / 100 * 0.75, 0, 0.75);
       const melodyNotes = [];
       const rangeMin = Math.max(48, Math.min(84, registerAdjusted));
       const rangeMax = rangeMin + 24;
@@ -4909,6 +5041,12 @@
         const allowTriplets = subdivisionMode !== "even";
         const durations = chooseMelodyDurations(duration, densityAdjusted, subdivisionAdjusted, allowTriplets, rng);
         const segments = applyBassFills(durations, fillChance, allowTriplets, rng);
+        const segmentsWithRests = applySegmentRests(
+          segments,
+          restChance,
+          rng,
+          { avoidFirst: restAdjusted < 75, minNotes: 1 }
+        );
         const baseRoot = chord.notes[0] ?? 60;
         const quality = chord.quality || "maj";
         const rootPc = ((baseRoot % 12) + 12) % 12;
@@ -4922,7 +5060,11 @@
           current = root;
         }
 
-        segments.forEach((segment, hitIndex) => {
+        segmentsWithRests.forEach((segment, hitIndex) => {
+          if (segment.rest) {
+            beatCursor += segment.dur;
+            return;
+          }
           let note = current ?? root;
           if (hitIndex === 0) {
             const palette = pickMelodyPalette(colorAdjusted, rng);
@@ -5628,6 +5770,7 @@
         densityPercent: parseInt(bassDensityInput?.value, 10) || 0,
         movementPercent: parseInt(bassMovementInput?.value, 10) || 0,
         fillPercent: parseInt(bassFillsInput?.value, 10) || 0,
+        restPercent: parseInt(bassRestsInput?.value, 10) || 0,
         colorPercent: parseInt(bassColorInput?.value, 10) || 0,
         subdivisionDensity: parseInt(bassSubdivisionDensityInput?.value, 10) || 0,
         subdivisionMode: bassSubdivisionInput?.value || "even",
@@ -5668,6 +5811,7 @@
         densityPercent: parseInt(melodyDensityInput?.value, 10) || 0,
         movementPercent: parseInt(melodyMovementInput?.value, 10) || 0,
         fillPercent: parseInt(melodyFillsInput?.value, 10) || 0,
+        restPercent: parseInt(melodyRestsInput?.value, 10) || 0,
         colorPercent: parseInt(melodyColorInput?.value, 10) || 0,
         subdivisionDensity: parseInt(melodySubdivisionDensityInput?.value, 10) || 0,
         subdivisionMode: melodySubdivisionInput?.value || "even",
@@ -5781,6 +5925,7 @@
       if (bassMovementInput) bassMovementInput.value = "40";
       if (bassColorInput) bassColorInput.value = "50";
       if (bassFillsInput) bassFillsInput.value = "50";
+      if (bassRestsInput) bassRestsInput.value = "50";
       if (bassSubdivisionDensityInput) bassSubdivisionDensityInput.value = "45";
       if (bassSubdivisionInput) bassSubdivisionInput.value = "even";
       if (bassStyleInput) bassStyleInput.value = "auto";
@@ -5790,6 +5935,7 @@
       if (melodyMovementInput) melodyMovementInput.value = "55";
       if (melodyColorInput) melodyColorInput.value = "10";
       if (melodyFillsInput) melodyFillsInput.value = "45";
+      if (melodyRestsInput) melodyRestsInput.value = "50";
       if (melodySubdivisionDensityInput) melodySubdivisionDensityInput.value = "55";
       if (melodySubdivisionInput) melodySubdivisionInput.value = "even";
       if (melodyStyleInput) melodyStyleInput.value = "auto";
@@ -5907,6 +6053,8 @@
     const bassColorReadout = document.getElementById("bassColorReadout");
     const bassFillsInput = document.getElementById("bassFills");
     const bassFillsReadout = document.getElementById("bassFillsReadout");
+    const bassRestsInput = document.getElementById("bassRests");
+    const bassRestsReadout = document.getElementById("bassRestsReadout");
     const bassSubdivisionDensityInput = document.getElementById("bassSubdivisionDensity");
     const bassSubdivisionDensityReadout = document.getElementById("bassSubdivisionDensityReadout");
     const bassSubdivisionInput = document.getElementById("bassSubdivision");
@@ -5940,6 +6088,8 @@
     const melodyColorReadout = document.getElementById("melodyColorReadout");
     const melodyFillsInput = document.getElementById("melodyFills");
     const melodyFillsReadout = document.getElementById("melodyFillsReadout");
+    const melodyRestsInput = document.getElementById("melodyRests");
+    const melodyRestsReadout = document.getElementById("melodyRestsReadout");
     const melodySubdivisionDensityInput = document.getElementById("melodySubdivisionDensity");
     const melodySubdivisionDensityReadout = document.getElementById("melodySubdivisionDensityReadout");
     const melodySubdivisionInput = document.getElementById("melodySubdivision");
@@ -6462,12 +6612,12 @@
       }
 
       if (style.startsWith("arp")) {
-        const baseStep = duration >= 2 ? 0.5 : 0.25;
         const complexity = getBackingComplexity() / 100;
-        const stepMin = baseStep * 0.5;
-        const stepMax = baseStep * 1.4;
-        let step = baseStep * (1 - 0.45 * complexity);
-        step = Math.max(stepMin, Math.min(stepMax, step));
+        const baseStep = duration >= 2 ? 0.5 : 0.25;
+        const baseCount = Math.max(2, Math.round(duration / baseStep));
+        const targetCount = Math.max(2, Math.round(baseCount * (1 + complexity * 0.8)));
+        const stepsCount = Math.min(32, targetCount);
+        const step = duration / stepsCount;
         const gate = Math.max(0.45, Math.min(0.95, 0.95 - complexity * 0.35));
         let sequence = asc;
         if (style === "arp-down") sequence = desc;
@@ -8154,6 +8304,7 @@
         densityPercent: parseInt(bassDensityInput?.value, 10) || 0,
         movementPercent: parseInt(bassMovementInput?.value, 10) || 0,
         fillPercent: parseInt(bassFillsInput?.value, 10) || 0,
+        restPercent: parseInt(bassRestsInput?.value, 10) || 0,
         colorPercent: parseInt(bassColorInput?.value, 10) || 0,
         subdivisionDensity: parseInt(bassSubdivisionDensityInput?.value, 10) || 0,
         subdivisionMode: bassSubdivisionInput?.value || "even",
@@ -8188,6 +8339,7 @@
         densityPercent: parseInt(melodyDensityInput?.value, 10) || 0,
         movementPercent: parseInt(melodyMovementInput?.value, 10) || 0,
         fillPercent: parseInt(melodyFillsInput?.value, 10) || 0,
+        restPercent: parseInt(melodyRestsInput?.value, 10) || 0,
         colorPercent: parseInt(melodyColorInput?.value, 10) || 0,
         subdivisionDensity: parseInt(melodySubdivisionDensityInput?.value, 10) || 0,
         subdivisionMode: melodySubdivisionInput?.value || "even",
@@ -8492,6 +8644,9 @@
       if (bassFillsReadout && bassFillsInput) {
         bassFillsReadout.textContent = `${bassFillsInput.value}%`;
       }
+      if (bassRestsReadout && bassRestsInput) {
+        bassRestsReadout.textContent = `${bassRestsInput.value}%`;
+      }
       if (bassSubdivisionDensityReadout && bassSubdivisionDensityInput) {
         bassSubdivisionDensityReadout.textContent = `${bassSubdivisionDensityInput.value}%`;
       }
@@ -8509,6 +8664,9 @@
       }
       if (melodyFillsReadout && melodyFillsInput) {
         melodyFillsReadout.textContent = `${melodyFillsInput.value}%`;
+      }
+      if (melodyRestsReadout && melodyRestsInput) {
+        melodyRestsReadout.textContent = `${melodyRestsInput.value}%`;
       }
       if (melodySubdivisionDensityReadout && melodySubdivisionDensityInput) {
         melodySubdivisionDensityReadout.textContent = `${melodySubdivisionDensityInput.value}%`;
@@ -8572,6 +8730,7 @@
           movement: bassMovementInput?.value || "",
           color: bassColorInput?.value || "",
           fills: bassFillsInput?.value || "",
+          rests: bassRestsInput?.value || "",
           subdivision: bassSubdivisionInput?.value || "",
           subdivisionDensity: bassSubdivisionDensityInput?.value || "",
           style: bassStyleInput?.value || "",
@@ -8585,6 +8744,7 @@
           movement: melodyMovementInput?.value || "",
           color: melodyColorInput?.value || "",
           fills: melodyFillsInput?.value || "",
+          rests: melodyRestsInput?.value || "",
           subdivision: melodySubdivisionInput?.value || "",
           subdivisionDensity: melodySubdivisionDensityInput?.value || "",
           style: melodyStyleInput?.value || "",
@@ -8698,6 +8858,7 @@
           densityPercent: parseInt(bassDensityInput?.value, 10) || 0,
           movementPercent: parseInt(bassMovementInput?.value, 10) || 0,
           fillPercent: parseInt(bassFillsInput?.value, 10) || 0,
+          restPercent: parseInt(bassRestsInput?.value, 10) || 0,
           colorPercent: parseInt(bassColorInput?.value, 10) || 0,
           subdivisionDensity: parseInt(bassSubdivisionDensityInput?.value, 10) || 0,
           subdivisionMode: bassSubdivisionInput?.value || "even",
@@ -8724,6 +8885,7 @@
           densityPercent: parseInt(melodyDensityInput?.value, 10) || 0,
           movementPercent: parseInt(melodyMovementInput?.value, 10) || 0,
           fillPercent: parseInt(melodyFillsInput?.value, 10) || 0,
+          restPercent: parseInt(melodyRestsInput?.value, 10) || 0,
           colorPercent: parseInt(melodyColorInput?.value, 10) || 0,
           subdivisionDensity: parseInt(melodySubdivisionDensityInput?.value, 10) || 0,
           subdivisionMode: melodySubdivisionInput?.value || "even",
@@ -8969,6 +9131,7 @@
       if (bassMovementInput) bassMovementInput.value = String(Math.floor(Math.random() * 101));
       if (bassColorInput) bassColorInput.value = String(Math.floor(Math.random() * 101));
       if (bassFillsInput) bassFillsInput.value = String(Math.floor(Math.random() * 101));
+      if (bassRestsInput) bassRestsInput.value = String(Math.floor(Math.random() * 101));
       if (bassSubdivisionDensityInput) bassSubdivisionDensityInput.value = String(Math.floor(Math.random() * 101));
       if (bassSubdivisionInput) bassSubdivisionInput.value = Math.random() < 0.5 ? "even" : "mixed";
       if (bassStyleInput) {
@@ -8991,6 +9154,7 @@
       if (melodyMovementInput) melodyMovementInput.value = String(Math.floor(Math.random() * 101));
       if (melodyColorInput) melodyColorInput.value = String(Math.floor(Math.random() * 101));
       if (melodyFillsInput) melodyFillsInput.value = String(Math.floor(Math.random() * 101));
+      if (melodyRestsInput) melodyRestsInput.value = String(Math.floor(Math.random() * 101));
       if (melodySubdivisionDensityInput) melodySubdivisionDensityInput.value = String(Math.floor(Math.random() * 101));
       if (melodySubdivisionInput) melodySubdivisionInput.value = Math.random() < 0.5 ? "even" : "mixed";
       if (melodyStyleInput) {
@@ -9172,7 +9336,9 @@
       "- $ong mode follows form sections with dynamics and repeated motifs.",
       "- Drum genre is independent from chord/bass/melody genre if you want.",
       "- Bass fills (%): Scale-based fill notes (0% none, 100% every chord).",
+      "- Bass rests (%): 0% legato, 100% choppy spacing.",
       "- Melody fills (%): Melodic fill notes within the chord scale.",
+      "- Melody rests (%): 0% legato, 100% choppy spacing.",
       "- Track VOL: Per-panel audio level (center = current loudness, can boost louder).",
       "- Select: Drag a box over clips, then hit ¢hords/฿ass/Melody/Drums to replace only the selection.",
       "- Loop/Regen (per track): Loop that track or regenerate it at the end.",
@@ -9337,6 +9503,11 @@
         titleRight.textContent = songMode ? "Machine" : "machine";
       }
       if (songMode) {
+        if (backingStyleInput) {
+          backingStyleInput.value = "auto";
+        }
+        resolveBackingSettings();
+        updateBackingCompVisibility(backingStyleInput?.value);
         if (themeSlider) {
           themeSlider.value = String(200);
           applyThemeMix(2);
@@ -9350,6 +9521,7 @@
         regenerateMelody(true);
         drumAutoRegenerate = true;
         regenerateDrums(true);
+        rebuildMidi();
         setPanelCollapsedState(chordPanel, chordCollapse, true);
         setPanelCollapsedState(bassPanel, bassCollapse, true);
         setPanelCollapsedState(melodyPanel, melodyCollapse, true);
@@ -9543,6 +9715,14 @@
         }
       });
     }
+    if (bassRestsInput) {
+      bassRestsInput.addEventListener("input", () => {
+        updateReadouts();
+        if (bassAutoRegenerate) {
+          regenerateBass();
+        }
+      });
+    }
     if (bassSubdivisionDensityInput) {
       bassSubdivisionDensityInput.addEventListener("input", () => {
         updateReadouts();
@@ -9599,6 +9779,14 @@
     }
     if (melodyFillsInput) {
       melodyFillsInput.addEventListener("input", () => {
+        updateReadouts();
+        if (melodyAutoRegenerate) {
+          regenerateMelody();
+        }
+      });
+    }
+    if (melodyRestsInput) {
+      melodyRestsInput.addEventListener("input", () => {
         updateReadouts();
         if (melodyAutoRegenerate) {
           regenerateMelody();
