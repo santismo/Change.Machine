@@ -817,6 +817,37 @@
       text-transform: uppercase;
     }
 
+    .form-lane {
+      position: relative;
+      height: 26px;
+      border-bottom: 1px solid rgba(var(--border-rgb), 0.35);
+      background-image:
+        repeating-linear-gradient(90deg, rgba(var(--glow-rgb), 0.2) 0, rgba(var(--glow-rgb), 0.2) 1px, transparent 1px, transparent var(--bar-px));
+    }
+
+    .form-lane.hidden {
+      display: none;
+    }
+
+    .form-block {
+      position: absolute;
+      top: 2px;
+      height: 22px;
+      border: 1px solid rgba(var(--accent-rgb), 0.55);
+      background: rgba(var(--accent-rgb), 0.16);
+      color: var(--text);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: inset 0 0 10px rgba(var(--accent-rgb), 0.2);
+    }
+
     .track {
       position: relative;
       height: 140px;
@@ -1119,7 +1150,7 @@
             <div class="panel-top-actions">
               <div class="volume-control">
                 <span>VOL</span>
-                <input id="chordVolume" type="range" min="0" max="100" value="100" />
+                <input id="chordVolume" type="range" min="0" max="200" value="100" />
               </div>
               <button id="chordLoopMode" class="secondary small-toggle">Loop</button>
               <button id="chordMute" class="secondary icon-toggle" aria-pressed="false" title="Mute chords">M</button>
@@ -1147,6 +1178,14 @@
               Bars
               <input id="bars" type="range" min="4" max="32" value="4" />
               <span class="readout" id="barsReadout">4 bars</span>
+            </label>
+            <label>
+              <div class="label-row">
+                <span>Form</span>
+                <button id="formToggle" class="secondary small-toggle" type="button" aria-pressed="false">Off</button>
+                <span class="readout inline" id="formComplexityReadout">30%</span>
+              </div>
+              <input id="formComplexity" type="range" min="0" max="100" value="30" />
             </label>
             <label>
               <div class="label-row">
@@ -1205,7 +1244,7 @@
             <div class="panel-top-actions">
               <div class="volume-control">
                 <span>VOL</span>
-                <input id="bassVolume" type="range" min="0" max="100" value="100" />
+                <input id="bassVolume" type="range" min="0" max="200" value="100" />
               </div>
               <button id="bassLoopMode" class="secondary small-toggle">Loop</button>
               <button id="bassMute" class="secondary icon-toggle" aria-pressed="false" title="Mute bass">M</button>
@@ -1293,7 +1332,7 @@
             <div class="panel-top-actions">
               <div class="volume-control">
                 <span>VOL</span>
-                <input id="melodyVolume" type="range" min="0" max="100" value="100" />
+                <input id="melodyVolume" type="range" min="0" max="200" value="100" />
               </div>
               <button id="melodyLoopMode" class="secondary small-toggle">Loop</button>
               <button id="melodyMute" class="secondary icon-toggle" aria-pressed="false" title="Mute melody">M</button>
@@ -1381,7 +1420,7 @@
             <div class="panel-top-actions">
               <div class="volume-control">
                 <span>VOL</span>
-                <input id="drumVolume" type="range" min="0" max="100" value="100" />
+                <input id="drumVolume" type="range" min="0" max="200" value="100" />
               </div>
               <button id="drumLoopMode" class="secondary small-toggle">Loop</button>
               <button id="drumMute" class="secondary icon-toggle" aria-pressed="false" title="Mute drums">M</button>
@@ -1472,6 +1511,7 @@
           <h2>Progression</h2>
           <div id="timelineView" class="timeline-view">
             <div id="ruler" class="ruler"></div>
+            <div id="formLane" class="form-lane hidden"></div>
             <div id="track" class="track chord-track"></div>
             <div id="bassTrack" class="track bass-track"></div>
             <div id="melodyTrack" class="track melody-track"></div>
@@ -3043,9 +3083,10 @@
       allowDense,
       subdivisionMode,
       profile,
-      colorPercent
+      colorPercent,
+      minBars = 4
     }) {
-      const totalBars = Math.max(4, bars);
+      const totalBars = Math.max(minBars, bars);
       const keyIndex = noteNames.indexOf(key);
       const bluesBars = profile && profile.bluesBars ? profile.bluesBars : [
         { base: "I", passing: [] },
@@ -3110,10 +3151,11 @@
       subdivisionDensity,
       genres,
       modulationPercent,
-      colorPercent
+      colorPercent,
+      minBars = 4
     }) {
       const rng = makeRng(seed);
-      const totalBars = Math.max(4, bars);
+      const totalBars = Math.max(minBars, bars);
       const totalBeats = totalBars * 4;
       const keyIndex = noteNames.indexOf(key);
       const genreList = (Array.isArray(genres) ? genres : [genres]).filter(Boolean);
@@ -3235,7 +3277,18 @@
       return chords;
     }
 
-    function generateProgression({ bars, key, densityPercent, seed, subdivision, subdivisionDensity, genre, modulationPercent, colorPercent }) {
+    function generateProgressionCore({
+      bars,
+      key,
+      densityPercent,
+      seed,
+      subdivision,
+      subdivisionDensity,
+      genre,
+      modulationPercent,
+      colorPercent,
+      minBars = 4
+    }) {
       const genreList = Array.isArray(genre) ? genre.filter(Boolean) : [genre];
       if (genreList.length > 1) {
         return generateBlendedProgression({
@@ -3247,12 +3300,13 @@
           subdivisionDensity,
           genres: genreList,
           modulationPercent,
-          colorPercent
+          colorPercent,
+          minBars
         });
       }
 
       const rng = makeRng(seed);
-      const totalBars = Math.max(4, bars);
+      const totalBars = Math.max(minBars, bars);
       const totalBeats = totalBars * 4;
       const keyIndex = noteNames.indexOf(key);
       const resolvedGenre = genreList[0] || "base";
@@ -3271,7 +3325,8 @@
           allowDense: profile.allowDense !== false,
           subdivisionMode: subdivision,
           profile,
-          colorPercent
+          colorPercent,
+          minBars
         });
       }
 
@@ -3364,8 +3419,671 @@
       return chords;
     }
 
+    function generateProgression({
+      bars,
+      key,
+      densityPercent,
+      seed,
+      subdivision,
+      subdivisionDensity,
+      genre,
+      modulationPercent,
+      colorPercent,
+      formEnabled: formEnabledOverride,
+      formComplexity: formComplexityOverride
+    }) {
+      const totalBars = Math.max(4, bars);
+      const complexity = normalizePercent(
+        formComplexityOverride ?? (formComplexityInput ? formComplexityInput.value : 0),
+        0
+      );
+      const enableForm = (formEnabledOverride ?? formEnabled) && totalBars >= 8;
+      if (!enableForm) {
+        currentFormSections = [];
+        return generateProgressionCore({
+          bars: totalBars,
+          key,
+          densityPercent,
+          seed,
+          subdivision,
+          subdivisionDensity,
+          genre,
+          modulationPercent,
+          colorPercent
+        });
+      }
+
+      const sections = buildFormSections(totalBars, complexity, seed);
+      currentFormSections = sections;
+      const chords = [];
+      const sectionCache = new Map();
+      sections.forEach(section => {
+        const adjustments = getFormSectionAdjustments(section.name);
+        const density = applySectionAdjustments(densityPercent, adjustments.chord.density, complexity);
+        const color = applySectionAdjustments(colorPercent, adjustments.chord.color, complexity);
+        const mod = applySectionAdjustments(modulationPercent, adjustments.chord.modulation, complexity);
+        const subdiv = clampValue(
+          (subdivisionDensity ?? 0) + scaleSectionDelta(adjustments.chord.subdivision, complexity) / 100,
+          0,
+          1
+        );
+        const groupId = section.repeatGroup || section.occurrence || 1;
+        const cacheKey = `${section.name}:${section.bars}:g${groupId}`;
+        const baseKey = `${section.name}:${section.bars}:g1`;
+        const repeatAllowed = ["verse", "chorus", "pre"].includes(section.name);
+        let sectionChords = null;
+        if (section.name === "solo" && sectionCache.has(`chorus:${section.bars}:g1`)) {
+          sectionChords = cloneChordList(sectionCache.get(`chorus:${section.bars}:g1`));
+        } else if (repeatAllowed && sectionCache.has(cacheKey)) {
+          const base = sectionCache.get(cacheKey);
+          if (section.name === "verse" && groupId > 1 && sectionCache.has(baseKey)) {
+            const sectionSeed = `${seed}|${section.name}-${section.startBar}-variant`;
+            const fresh = generateProgressionCore({
+              bars: section.bars,
+              key,
+              densityPercent: density,
+              seed: sectionSeed,
+              subdivision,
+              subdivisionDensity: subdiv,
+              genre,
+              modulationPercent: mod,
+              colorPercent: color,
+              minBars: 1
+            });
+            sectionChords = createSectionVariation(sectionCache.get(baseKey), fresh, complexity);
+          } else {
+            sectionChords = cloneChordList(base);
+          }
+        } else {
+          const sectionSeed = `${seed}|${section.name}-${section.startBar}`;
+          sectionChords = generateProgressionCore({
+            bars: section.bars,
+            key,
+            densityPercent: density,
+            seed: sectionSeed,
+            subdivision,
+            subdivisionDensity: subdiv,
+            genre,
+            modulationPercent: mod,
+            colorPercent: color,
+            minBars: 1
+          });
+          if (repeatAllowed) {
+            sectionCache.set(cacheKey, cloneChordList(sectionChords));
+            if (!sectionCache.has(baseKey)) {
+              sectionCache.set(baseKey, cloneChordList(sectionChords));
+            }
+          }
+        }
+        sectionChords.forEach(chord => {
+          chord.section = section.name;
+          chords.push(chord);
+        });
+      });
+      return chords;
+    }
+
+    function generateBassLineWithForm({
+      chords,
+      sections,
+      seed,
+      densityPercent,
+      movementPercent,
+      fillPercent,
+      colorPercent,
+      subdivisionDensity,
+      subdivisionMode,
+      style,
+      register,
+      genre,
+      mainGenre,
+      formComplexity
+    }) {
+      if (!sections || !sections.length) {
+        return generateBassLine({
+          chords,
+          seed,
+          densityPercent,
+          movementPercent,
+          fillPercent,
+          colorPercent,
+          subdivisionDensity,
+          subdivisionMode,
+          style,
+          register,
+          genre,
+          mainGenre
+        });
+      }
+      const complexity = normalizePercent(formComplexity, 0);
+      const cache = new Map();
+      const notes = [];
+      sections.forEach(section => {
+        const sectionChords = extractChordsForSection(chords, section.startBar, section.bars);
+        if (!sectionChords.length) return;
+        const adjustments = getFormSectionAdjustments(section.name);
+        const density = applySectionAdjustments(densityPercent, adjustments.bass.density, complexity);
+        const movement = applySectionAdjustments(movementPercent, adjustments.bass.movement, complexity);
+        const fills = applySectionAdjustments(fillPercent, adjustments.bass.fills, complexity);
+        const color = applySectionAdjustments(colorPercent, adjustments.bass.color, complexity);
+        const subdiv = applySectionAdjustments(subdivisionDensity, adjustments.bass.subdivision, complexity);
+        const cacheKey = `${section.name}:${section.bars}`;
+        const repeatAllowed = ["verse", "chorus", "pre"].includes(section.name) && complexity < 75;
+        let sectionNotes = null;
+        if (repeatAllowed && cache.has(cacheKey)) {
+          sectionNotes = cache.get(cacheKey).map(note => ({ ...note }));
+        } else {
+          const sectionSeed = `${seed}|bass|${section.name}`;
+          sectionNotes = generateBassLine({
+            chords: sectionChords,
+            seed: sectionSeed,
+            densityPercent: density,
+            movementPercent: movement,
+            fillPercent: fills,
+            colorPercent: color,
+            subdivisionDensity: subdiv,
+            subdivisionMode,
+            style,
+            register,
+            genre,
+            mainGenre
+          });
+          if (repeatAllowed) {
+            cache.set(cacheKey, sectionNotes.map(note => ({ ...note })));
+          }
+        }
+        const offset = section.startBar * 4;
+        sectionNotes.forEach(note => {
+          notes.push({ ...note, startBeat: note.startBeat + offset });
+        });
+      });
+      return notes;
+    }
+
+    function generateMelodyLineWithForm({
+      chords,
+      sections,
+      seed,
+      densityPercent,
+      movementPercent,
+      fillPercent,
+      colorPercent,
+      subdivisionDensity,
+      subdivisionMode,
+      style,
+      register,
+      genre,
+      mainGenre,
+      formComplexity
+    }) {
+      if (!sections || !sections.length) {
+        return generateMelodyLine({
+          chords,
+          seed,
+          densityPercent,
+          movementPercent,
+          fillPercent,
+          colorPercent,
+          subdivisionDensity,
+          subdivisionMode,
+          style,
+          register,
+          genre,
+          mainGenre
+        });
+      }
+      const complexity = normalizePercent(formComplexity, 0);
+      const cache = new Map();
+      const notes = [];
+      sections.forEach(section => {
+        const sectionChords = extractChordsForSection(chords, section.startBar, section.bars);
+        if (!sectionChords.length) return;
+        const adjustments = getFormSectionAdjustments(section.name);
+        const density = applySectionAdjustments(densityPercent, adjustments.melody.density, complexity);
+        const movement = applySectionAdjustments(movementPercent, adjustments.melody.movement, complexity);
+        const fills = applySectionAdjustments(fillPercent, adjustments.melody.fills, complexity);
+        const color = applySectionAdjustments(colorPercent, adjustments.melody.color, complexity);
+        const subdiv = applySectionAdjustments(subdivisionDensity, adjustments.melody.subdivision, complexity);
+        const cacheKey = `${section.name}:${section.bars}`;
+        const repeatAllowed = ["verse", "chorus", "pre"].includes(section.name) && complexity < 75;
+        let sectionNotes = null;
+        if (repeatAllowed && cache.has(cacheKey)) {
+          sectionNotes = cache.get(cacheKey).map(note => ({ ...note }));
+        } else {
+          const sectionSeed = `${seed}|melody|${section.name}`;
+          const sectionStyle = section.name === "solo" && style === "auto" ? "leap" : style;
+          sectionNotes = generateMelodyLine({
+            chords: sectionChords,
+            seed: sectionSeed,
+            densityPercent: density,
+            movementPercent: movement,
+            fillPercent: fills,
+            colorPercent: color,
+            subdivisionDensity: subdiv,
+            subdivisionMode,
+            style: sectionStyle,
+            register,
+            genre,
+            mainGenre
+          });
+          if (repeatAllowed) {
+            cache.set(cacheKey, sectionNotes.map(note => ({ ...note })));
+          }
+        }
+        const offset = section.startBar * 4;
+        sectionNotes.forEach(note => {
+          notes.push({ ...note, startBeat: note.startBeat + offset });
+        });
+      });
+      return notes;
+    }
+
+    function generateDrumPatternWithForm({
+      bars,
+      sections,
+      seed,
+      densityPercent,
+      complexityPercent,
+      fillPercent,
+      ghostPercent,
+      velocityPercent,
+      style,
+      genre,
+      mainGenre,
+      formComplexity
+    }) {
+      if (!sections || !sections.length) {
+        return generateDrumPattern({
+          bars,
+          seed,
+          densityPercent,
+          complexityPercent,
+          fillPercent,
+          ghostPercent,
+          velocityPercent,
+          style,
+          genre,
+          mainGenre
+        });
+      }
+      const complexity = normalizePercent(formComplexity, 0);
+      const cache = new Map();
+      const notes = [];
+      sections.forEach(section => {
+        const adjustments = getFormSectionAdjustments(section.name);
+        const density = applySectionAdjustments(densityPercent, adjustments.drum.density, complexity);
+        const detail = applySectionAdjustments(complexityPercent, adjustments.drum.complexity, complexity);
+        const fills = applySectionAdjustments(fillPercent, adjustments.drum.fills, complexity);
+        const ghost = applySectionAdjustments(ghostPercent, adjustments.drum.ghost, complexity);
+        const cacheKey = `${section.name}:${section.bars}`;
+        const repeatAllowed = ["verse", "chorus", "pre"].includes(section.name) && complexity < 75;
+        let sectionNotes = null;
+        if (repeatAllowed && cache.has(cacheKey)) {
+          sectionNotes = cache.get(cacheKey).map(note => ({ ...note }));
+        } else {
+          const sectionSeed = `${seed}|drum|${section.name}`;
+          sectionNotes = generateDrumPattern({
+            bars: section.bars,
+            seed: sectionSeed,
+            densityPercent: density,
+            complexityPercent: detail,
+            fillPercent: fills,
+            ghostPercent: ghost,
+            velocityPercent,
+            style,
+            genre,
+            mainGenre
+          });
+          if (repeatAllowed) {
+            cache.set(cacheKey, sectionNotes.map(note => ({ ...note })));
+          }
+        }
+        const offset = section.startBar * 4;
+        sectionNotes.forEach(hit => {
+          notes.push({ ...hit, startBeat: hit.startBeat + offset });
+        });
+      });
+      return notes;
+    }
+
     function clampValue(value, min, max) {
       return Math.max(min, Math.min(max, value));
+    }
+
+    function normalizePercent(value, fallback = 0) {
+      const num = parseInt(value, 10);
+      if (Number.isNaN(num)) return fallback;
+      return clampValue(num, 0, 100);
+    }
+
+    function buildFormSections(totalBars, complexityPercent, seed) {
+      const complexity = clampValue(complexityPercent, 0, 100) / 100;
+      const rng = makeRng(`${seed}|form-layout|${Math.round(complexityPercent)}`);
+      const minSectionBars = complexity >= 0.75 ? 1 : 2;
+      const wantIntro = totalBars >= 8 && (complexity < 0.15 || rng() < (0.55 + complexity * 0.25));
+      const wantOutro = totalBars >= 8 && (complexity < 0.2 ? rng() < 0.6 : rng() < (0.35 + complexity * 0.35));
+
+      const maxSections = Math.max(3, Math.floor(totalBars / minSectionBars));
+      const baseSections = 3 + (wantIntro ? 1 : 0) + (wantOutro ? 1 : 0);
+      const targetSections = Math.min(
+        maxSections,
+        Math.max(baseSections, Math.round(4 + complexity * (maxSections - 4)))
+      );
+
+      const structure = [];
+      if (wantIntro) structure.push("intro");
+      structure.push("verse");
+      structure.push("chorus");
+
+      const pickWeighted = (choices) => {
+        const total = choices.reduce((sum, item) => sum + item.weight, 0);
+        let roll = rng() * total;
+        for (let i = 0; i < choices.length; i++) {
+          roll -= choices[i].weight;
+          if (roll <= 0) return choices[i].name;
+        }
+        return choices[choices.length - 1].name;
+      };
+
+      while (structure.length < targetSections - (wantOutro ? 1 : 0)) {
+        const last = structure[structure.length - 1];
+        const baseWeights = [
+          { name: "verse", weight: 1.1 },
+          { name: "chorus", weight: 1.0 },
+          { name: "pre", weight: 0.2 + complexity * 0.8 },
+          { name: "bridge", weight: 0.15 + complexity * 0.7 },
+          { name: "solo", weight: 0.2 + complexity * 1.05 }
+        ];
+        if (last === "verse") {
+          baseWeights.find(item => item.name === "chorus").weight += 0.4;
+          baseWeights.find(item => item.name === "pre").weight += 0.3;
+          baseWeights.find(item => item.name === "verse").weight += 0.2;
+        } else if (last === "chorus") {
+          baseWeights.find(item => item.name === "verse").weight += 0.35;
+          baseWeights.find(item => item.name === "bridge").weight += 0.25;
+          baseWeights.find(item => item.name === "solo").weight += 0.2;
+        } else if (last === "pre") {
+          baseWeights.find(item => item.name === "chorus").weight += 0.6;
+        } else if (last === "bridge") {
+          baseWeights.find(item => item.name === "chorus").weight += 0.5;
+          baseWeights.find(item => item.name === "verse").weight += 0.2;
+        } else if (last === "solo") {
+          baseWeights.find(item => item.name === "chorus").weight += 0.6;
+          baseWeights.find(item => item.name === "verse").weight += 0.2;
+        }
+        const next = pickWeighted(baseWeights);
+        structure.push(next);
+      }
+
+      const hasName = (name) => structure.some(entry => (typeof entry === "string" ? entry : entry.name) === name);
+      if (complexity <= 0.3) {
+        const coreSlots = Math.max(1, targetSections - (wantIntro ? 1 : 0) - (wantOutro ? 1 : 0));
+        const core = [];
+        const groupCounts = {};
+        let nextCore = rng() < 0.5 ? "chorus" : "verse";
+        while (core.length < coreSlots) {
+          const groupId = (groupCounts[nextCore] || 0) + 1;
+          groupCounts[nextCore] = groupId;
+          core.push({ name: nextCore, repeatGroup: groupId });
+          if (core.length < coreSlots) {
+            core.push({ name: nextCore, repeatGroup: groupId });
+          }
+          nextCore = nextCore === "verse" ? "chorus" : "verse";
+        }
+        structure.length = 0;
+        if (wantIntro) structure.push({ name: "intro", repeatGroup: 1 });
+        structure.push(...core.slice(0, coreSlots));
+        if (wantOutro) structure.push({ name: "outro", repeatGroup: 1 });
+      } else {
+        if (!hasName("verse")) structure.splice(wantIntro ? 1 : 0, 0, "verse");
+        if (!hasName("chorus")) structure.push("chorus");
+        if (wantOutro) structure.push("outro");
+      }
+
+      const lengthRanges = {
+        intro: [1, 4],
+        verse: [2, 6],
+        pre: [2, 4],
+        chorus: [2, 6],
+        bridge: [2, 4],
+        solo: [1, 4],
+        outro: [1, 4]
+      };
+
+      const pickSectionBars = (name) => {
+        const range = lengthRanges[name] || [2, 4];
+        if (complexity <= 0.3) {
+          return Math.max(minSectionBars, 2);
+        }
+        const min = Math.max(minSectionBars, range[0] + Math.floor(complexity * 1));
+        const max = Math.max(min, range[1] + Math.floor(complexity * 2));
+        return min + Math.floor(rng() * (max - min + 1));
+      };
+
+      let sections = structure.map((entry, index) => {
+        const name = typeof entry === "string" ? entry : entry.name;
+        const repeatGroup = (entry && typeof entry === "object" && entry.repeatGroup) ? entry.repeatGroup : null;
+        return {
+          name,
+          bars: pickSectionBars(name),
+          index,
+          repeatGroup
+        };
+      });
+
+      let sumBars = sections.reduce((sum, section) => sum + section.bars, 0);
+      const removable = ["outro", "intro", "solo", "bridge", "pre"];
+      removable.forEach(type => {
+        if (sumBars <= totalBars) return;
+        for (let i = sections.length - 1; i >= 0 && sumBars > totalBars; i--) {
+          if (sections[i].name === type) {
+            sumBars -= sections[i].bars;
+            sections.splice(i, 1);
+          }
+        }
+      });
+
+      while (sumBars > totalBars && sections.length) {
+        const candidate = sections.reduce((best, section) => (section.bars > best.bars ? section : best), sections[0]);
+        if (candidate.bars <= minSectionBars) break;
+        candidate.bars -= 1;
+        sumBars -= 1;
+      }
+
+      while (sumBars < totalBars && sections.length) {
+        const expandable = sections.filter(section => ["verse", "chorus", "bridge", "solo"].includes(section.name));
+        const pool = expandable.length ? expandable : sections;
+        const target = pool[Math.floor(rng() * pool.length)];
+        target.bars += 1;
+        sumBars += 1;
+      }
+
+      const shortRepeatChance = complexityPercent > 30
+        ? clampValue(0.75 - complexity * 0.4, 0.2, 0.75)
+        : 0;
+      if (shortRepeatChance > 0) {
+        for (let i = 1; i < sections.length; i++) {
+          const prev = sections[i - 1];
+          const cur = sections[i];
+          if (prev.bars <= 2 && rng() < shortRepeatChance) {
+            cur.name = prev.name;
+            cur.repeatGroup = prev.repeatGroup || cur.repeatGroup;
+          }
+        }
+      }
+
+      const labelMap = {
+        intro: "Intro",
+        verse: "Verse",
+        pre: "Pre",
+        chorus: "Chorus",
+        bridge: "Bridge",
+        solo: "Solo",
+        outro: "Ending"
+      };
+
+      let cursor = 0;
+      const groupCounts = {};
+      sections = sections.map(section => {
+        let group = section.repeatGroup;
+        if (!group) {
+          group = (groupCounts[section.name] || 0) + 1;
+        }
+        groupCounts[section.name] = Math.max(groupCounts[section.name] || 0, group);
+        const startBar = cursor;
+        cursor += section.bars;
+        return {
+          ...section,
+          repeatGroup: group,
+          occurrence: group,
+          label: `${labelMap[section.name] || section.name} ${group}`,
+          startBar
+        };
+      });
+
+      return sections;
+    }
+
+    function getFormSectionAdjustments(sectionName) {
+      const profile = {
+        chord: { density: 0, color: 0, modulation: 0, subdivision: 0 },
+        bass: { density: 0, movement: 0, color: 0, fills: 0, subdivision: 0 },
+        melody: { density: 0, movement: 0, color: 0, fills: 0, subdivision: 0 },
+        drum: { density: 0, complexity: 0, fills: 0, ghost: 0 }
+      };
+
+      const set = (target, updates) => Object.assign(profile[target], updates);
+
+      if (sectionName === "intro") {
+        set("chord", { density: -35, color: -15, subdivision: -18 });
+        set("bass", { density: -30, movement: -18, color: -20, fills: -30, subdivision: -18 });
+        set("melody", { density: -40, movement: -22, color: -20, fills: -35, subdivision: -18 });
+        set("drum", { density: -35, complexity: -25, fills: -35, ghost: -18 });
+      } else if (sectionName === "pre") {
+        set("chord", { density: 10, color: 6, subdivision: 6 });
+        set("bass", { density: 12, movement: 10, color: 8, fills: 10, subdivision: 8 });
+        set("melody", { density: 12, movement: 12, color: 8, fills: 10, subdivision: 8 });
+        set("drum", { density: 12, complexity: 10, fills: 12, ghost: 8 });
+      } else if (sectionName === "chorus") {
+        set("chord", { density: 20, color: 15, subdivision: 10 });
+        set("bass", { density: 20, movement: 12, color: 12, fills: 15, subdivision: 10 });
+        set("melody", { density: 18, movement: 12, color: 12, fills: 15, subdivision: 10 });
+        set("drum", { density: 22, complexity: 15, fills: 18, ghost: 10 });
+      } else if (sectionName === "bridge") {
+        set("chord", { density: 12, color: 20, modulation: 15, subdivision: 8 });
+        set("bass", { density: 10, movement: 18, color: 15, fills: 12, subdivision: 10 });
+        set("melody", { density: 12, movement: 20, color: 18, fills: 12, subdivision: 10 });
+        set("drum", { density: 8, complexity: 18, fills: 12, ghost: 8 });
+      } else if (sectionName === "solo") {
+        set("chord", { density: 15, color: 20, modulation: 10, subdivision: 12 });
+        set("bass", { density: 15, movement: 22, color: 18, fills: 18, subdivision: 12 });
+        set("melody", { density: 28, movement: 25, color: 22, fills: 20, subdivision: 15 });
+        set("drum", { density: 15, complexity: 18, fills: 18, ghost: 10 });
+      } else if (sectionName === "outro") {
+        set("chord", { density: -30, color: -10, subdivision: -15 });
+        set("bass", { density: -28, movement: -16, color: -15, fills: -22, subdivision: -15 });
+        set("melody", { density: -35, movement: -20, color: -15, fills: -25, subdivision: -15 });
+        set("drum", { density: -30, complexity: -18, fills: -30, ghost: -12 });
+      }
+
+      return profile;
+    }
+
+    function scaleSectionDelta(delta, complexityPercent) {
+      const factor = clampValue(complexityPercent, 0, 100) / 100;
+      return delta * factor;
+    }
+
+    function applySectionAdjustments(base, delta, complexityPercent) {
+      return clampValue(base + scaleSectionDelta(delta, complexityPercent), 0, 100);
+    }
+
+    function cloneChordList(chords) {
+      return chords.map(chord => ({
+        name: chord.name,
+        quality: chord.quality,
+        duration: chord.duration,
+        notes: chord.notes ? chord.notes.slice() : [],
+        section: chord.section || null
+      }));
+    }
+
+    function createSectionVariation(baseChords, freshChords, complexityPercent) {
+      if (!baseChords.length || !freshChords.length) return cloneChordList(baseChords);
+      const variation = baseChords.map(chord => ({
+        name: chord.name,
+        quality: chord.quality,
+        duration: chord.duration,
+        notes: chord.notes ? chord.notes.slice() : []
+      }));
+      const maxSwap = Math.min(baseChords.length, freshChords.length);
+      if (maxSwap <= 2) return variation;
+      const midStart = 1;
+      const midEnd = maxSwap - 2;
+      const chance = clampValue(complexityPercent, 0, 100) / 100 * 0.6 + 0.2;
+      for (let i = midStart; i <= midEnd; i++) {
+        if (Math.random() < chance) {
+          variation[i] = {
+            name: freshChords[i].name,
+            quality: freshChords[i].quality,
+            duration: freshChords[i].duration,
+            notes: freshChords[i].notes ? freshChords[i].notes.slice() : []
+          };
+        }
+      }
+      return variation;
+    }
+
+    function extractChordsForSection(chords, startBar, bars) {
+      const startBeat = startBar * 4;
+      const endBeat = startBeat + bars * 4;
+      let cursor = 0;
+      const slice = [];
+      chords.forEach(chord => {
+        const chordStart = cursor;
+        const chordEnd = cursor + chord.duration;
+        cursor = chordEnd;
+        if (chordEnd <= startBeat) return;
+        if (chordStart >= endBeat) return;
+        if (chordStart + 1e-6 < startBeat || chordEnd - 1e-6 > endBeat) return;
+        slice.push({
+          name: chord.name,
+          quality: chord.quality,
+          duration: chord.duration,
+          notes: chord.notes ? chord.notes.slice() : []
+        });
+      });
+      return slice;
+    }
+
+    function renderFormLane(sections, totalBars, beatPx) {
+      if (!formLane) return;
+      formLane.innerHTML = "";
+      if (!sections || !sections.length) {
+        formLane.classList.add("hidden");
+        return;
+      }
+      formLane.classList.remove("hidden");
+      formLane.style.width = `${Math.max(1, totalBars * 4 * beatPx)}px`;
+      sections.forEach(section => {
+        const block = document.createElement("div");
+        block.className = "form-block";
+        block.textContent = section.label || section.name;
+        block.style.left = `${section.startBar * 4 * beatPx}px`;
+        block.style.width = `${section.bars * 4 * beatPx - 6}px`;
+        formLane.appendChild(block);
+      });
+    }
+
+    function setFormEnabledState(enabled) {
+      formEnabled = !!enabled;
+      if (formToggle) {
+        formToggle.textContent = formEnabled ? "On" : "Off";
+        formToggle.setAttribute("aria-pressed", formEnabled ? "true" : "false");
+      }
+      if (formComplexityInput) {
+        formComplexityInput.disabled = !formEnabled;
+      }
     }
 
     function getBassProfile(genreKey, mainKey) {
@@ -4528,11 +5246,12 @@
     function regenerateBass(forceNew = false) {
       if (!currentChords.length) return;
       const seedLabel = currentSeed || seedInput?.value || "$eed-bass";
+      const formComplexityValue = normalizePercent(formComplexityInput?.value, 0);
       const seedBlend = getActiveBlend(seedLabel);
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const bassSeed = getBassSeedLabel(seedLabel, forceNew);
-      currentBass = generateBassLine({
+      const bassOptions = {
         chords: currentChords,
         seed: bassSeed,
         densityPercent: parseInt(bassDensityInput?.value, 10) || 0,
@@ -4544,8 +5263,12 @@
         style: bassStyleInput?.value || "auto",
         register: parseInt(bassRegisterInput?.value, 10) || 36,
         genre: blendSubs || (bassGenreSub?.value || genreSub?.value || "base"),
-        mainGenre: blendMains || (bassGenreMain?.value || genreMain?.value || "")
-      });
+        mainGenre: blendMains || (bassGenreMain?.value || genreMain?.value || ""),
+        formComplexity: formComplexityValue
+      };
+      currentBass = (songMode && formEnabled && currentFormSections.length)
+        ? generateBassLineWithForm({ ...bassOptions, sections: currentFormSections })
+        : generateBassLine(bassOptions);
       bassAutoRegenerate = true;
       renderBassTrack();
       rebuildMidi();
@@ -4563,11 +5286,12 @@
     function regenerateMelody(forceNew = false) {
       if (!currentChords.length) return;
       const seedLabel = currentSeed || seedInput?.value || "$eed-melody";
+      const formComplexityValue = normalizePercent(formComplexityInput?.value, 0);
       const seedBlend = getActiveBlend(seedLabel);
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const melodySeed = getMelodySeedLabel(seedLabel, forceNew);
-      currentMelody = generateMelodyLine({
+      const melodyOptions = {
         chords: currentChords,
         seed: melodySeed,
         densityPercent: parseInt(melodyDensityInput?.value, 10) || 0,
@@ -4579,8 +5303,12 @@
         style: melodyStyleInput?.value || "auto",
         register: parseInt(melodyRegisterInput?.value, 10) || 72,
         genre: blendSubs || (melodyGenreSub?.value || genreSub?.value || "base"),
-        mainGenre: blendMains || (melodyGenreMain?.value || genreMain?.value || "")
-      });
+        mainGenre: blendMains || (melodyGenreMain?.value || genreMain?.value || ""),
+        formComplexity: formComplexityValue
+      };
+      currentMelody = (songMode && formEnabled && currentFormSections.length)
+        ? generateMelodyLineWithForm({ ...melodyOptions, sections: currentFormSections })
+        : generateMelodyLine(melodyOptions);
       melodyAutoRegenerate = true;
       renderMelodyTrack();
       rebuildMidi();
@@ -4598,13 +5326,14 @@
     function regenerateDrums(forceNew = false) {
       if (!currentChords.length) return;
       const seedLabel = currentSeed || seedInput?.value || "$eed-drums";
+      const formComplexityValue = normalizePercent(formComplexityInput?.value, 0);
       const seedBlend = getActiveBlend(seedLabel);
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const drumSeed = getDrumSeedLabel(seedLabel, forceNew);
       const drumMain = blendMains || (drumGenreMain?.value || genreMain?.value || "");
       const drumSub = blendSubs || (drumGenreSub?.value || genreSub?.value || "base");
-      currentDrums = generateDrumPattern({
+      const drumOptions = {
         bars: parseInt(barsInput?.value, 10) || 4,
         seed: drumSeed,
         densityPercent: parseInt(drumDensityInput?.value, 10) || 0,
@@ -4614,8 +5343,12 @@
         velocityPercent: parseInt(drumVelocityInput?.value, 10) || 100,
         style: drumStyleInput?.value || "auto",
         genre: drumSub,
-        mainGenre: drumMain
-      });
+        mainGenre: drumMain,
+        formComplexity: formComplexityValue
+      };
+      currentDrums = (songMode && formEnabled && currentFormSections.length)
+        ? generateDrumPatternWithForm({ ...drumOptions, sections: currentFormSections })
+        : generateDrumPattern(drumOptions);
       drumAutoRegenerate = true;
       renderDrumTrack();
       rebuildMidi();
@@ -4664,6 +5397,8 @@
       if (drumGenreMain && drumGenreSub) populateGenreSelectsFor(drumGenreMain, drumGenreSub, "core", "base");
       if (tempoInput) tempoInput.value = "110";
       if (barsInput) barsInput.value = "4";
+      if (formComplexityInput) formComplexityInput.value = "30";
+      setFormEnabledState(false);
       if (densityInput) densityInput.value = "50";
       if (colorInput) colorInput.value = "50";
       if (modulationInput) modulationInput.value = "15";
@@ -4753,6 +5488,9 @@
     const melodyLoopButton = document.getElementById("melodyLoopMode");
     const drumLoopButton = document.getElementById("drumLoopMode");
     const barsInput = document.getElementById("bars");
+    const formToggle = document.getElementById("formToggle");
+    const formComplexityInput = document.getElementById("formComplexity");
+    const formComplexityReadout = document.getElementById("formComplexityReadout");
     const densityInput = document.getElementById("density");
     const colorInput = document.getElementById("color");
     const modulationInput = document.getElementById("modulation");
@@ -4857,6 +5595,7 @@
     const bassTrack = document.getElementById("bassTrack");
     const melodyTrack = document.getElementById("melodyTrack");
     const drumTrack = document.getElementById("drumTrack");
+    const formLane = document.getElementById("formLane");
     const selectToggle = document.getElementById("selectToggle");
     const timelineScroll = document.getElementById("timelineScroll");
     const progressionText = document.getElementById("progressionText");
@@ -5729,7 +6468,19 @@
     let currentDrumMaxVelocity = 127;
     let manualBlendGenres = [];
     let manualBlendEnabled = false;
+    let formEnabled = false;
+    let currentFormSections = [];
+    let timelineScrollAnim = null;
+    let timelineScrollAnimStart = 0;
+    let timelineScrollFrom = 0;
+    let timelineScrollTo = 0;
+    let playheadRaf = null;
+    let playheadStartMs = 0;
+    let playheadStartBeat = 0;
+    let playheadBeatSec = 0;
+    let playheadTotalBeats = 0;
     syncBlendSelects([]);
+    setFormEnabledState(false);
 
     function getMidiVelocity() {
       if (!midiVelocity) return 96;
@@ -6414,24 +7165,111 @@
       if (currentChordIndex >= 0 && chordClips[currentChordIndex]) {
         const clip = chordClips[currentChordIndex];
         clip.classList.add("active");
-        const clipLeft = clip.offsetLeft;
-        const clipRight = clipLeft + clip.offsetWidth;
-        const viewLeft = timelineView.scrollLeft;
-        const viewRight = viewLeft + timelineView.clientWidth;
-        const targetLeft = Math.max(clipLeft - 16, 0);
-        if (clipRight > viewRight || clipLeft < viewLeft) {
-          timelineView.scrollLeft = targetLeft;
+        if (!isPlaying) {
+          scrollTimelineToClip(clip, false, false);
         }
-        timelineScroll.value = String(timelineView.scrollLeft);
       }
       renderProgressionHighlight(currentChordIndex);
     }
 
     function scrollTimelineToBeat(beat) {
       if (!timelineView) return;
-      const targetLeft = Math.max(beat * currentBeatPx - 16, 0);
-      timelineView.scrollLeft = targetLeft;
+      const viewWidth = timelineView.clientWidth || 0;
+      const targetLeft = beat * currentBeatPx - viewWidth * 0.5;
+      setTimelineScroll(targetLeft, isPlaying);
+    }
+
+    function updateTimelineScrollToBeat(beat) {
+      if (!timelineView) return;
+      const viewWidth = timelineView.clientWidth || 0;
+      const maxScroll = Math.max(0, timelineView.scrollWidth - viewWidth);
+      const targetLeft = beat * currentBeatPx - viewWidth * 0.5;
+      const clamped = Math.max(0, Math.min(maxScroll, targetLeft));
+      timelineView.scrollLeft = clamped;
       timelineScroll.value = String(timelineView.scrollLeft);
+    }
+
+    function stopPlaybackScroll() {
+      if (playheadRaf) {
+        cancelAnimationFrame(playheadRaf);
+        playheadRaf = null;
+      }
+    }
+
+    function startPlaybackScroll(startBeat, totalBeats, beatSec) {
+      stopPlaybackScroll();
+      playheadStartMs = performance.now();
+      playheadStartBeat = startBeat;
+      playheadBeatSec = beatSec;
+      playheadTotalBeats = totalBeats;
+      const tick = (now) => {
+        if (!isPlaying) {
+          stopPlaybackScroll();
+          return;
+        }
+        const elapsed = Math.max(0, (now - playheadStartMs) / 1000);
+        let beat = playheadStartBeat + elapsed / playheadBeatSec;
+        if (beat > playheadTotalBeats) {
+          beat = playheadTotalBeats;
+        }
+        updateTimelineScrollToBeat(beat);
+        playheadRaf = requestAnimationFrame(tick);
+      };
+      playheadRaf = requestAnimationFrame(tick);
+    }
+
+    function setTimelineScroll(targetLeft, smooth) {
+      if (!timelineView) return;
+      const viewWidth = timelineView.clientWidth || 0;
+      const maxScroll = Math.max(0, timelineView.scrollWidth - viewWidth);
+      const clamped = Math.max(0, Math.min(maxScroll, targetLeft));
+      if (!smooth) {
+        if (timelineScrollAnim) {
+          cancelAnimationFrame(timelineScrollAnim);
+          timelineScrollAnim = null;
+        }
+        timelineView.scrollLeft = clamped;
+        timelineScroll.value = String(timelineView.scrollLeft);
+        return;
+      }
+      timelineScrollFrom = timelineView.scrollLeft;
+      timelineScrollTo = clamped;
+      timelineScrollAnimStart = performance.now();
+      if (timelineScrollAnim) {
+        cancelAnimationFrame(timelineScrollAnim);
+      }
+      const duration = 260;
+      const step = (now) => {
+        const t = Math.min(1, (now - timelineScrollAnimStart) / duration);
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const value = timelineScrollFrom + (timelineScrollTo - timelineScrollFrom) * eased;
+        timelineView.scrollLeft = value;
+        timelineScroll.value = String(timelineView.scrollLeft);
+        if (t < 1) {
+          timelineScrollAnim = requestAnimationFrame(step);
+        } else {
+          timelineScrollAnim = null;
+        }
+      };
+      timelineScrollAnim = requestAnimationFrame(step);
+    }
+
+    function scrollTimelineToClip(clip, center = false, smooth = false) {
+      if (!clip || !timelineView) return;
+      const clipLeft = clip.offsetLeft;
+      const clipRight = clipLeft + clip.offsetWidth;
+      const viewLeft = timelineView.scrollLeft;
+      const viewWidth = timelineView.clientWidth || 0;
+      const viewRight = viewLeft + viewWidth;
+      if (center) {
+        const targetLeft = clipLeft + clip.offsetWidth / 2 - viewWidth / 2;
+        setTimelineScroll(targetLeft, smooth);
+        return;
+      }
+      if (clipRight > viewRight || clipLeft < viewLeft) {
+        const targetLeft = clipLeft - 16;
+        setTimelineScroll(targetLeft, smooth);
+      }
     }
 
     function findChordIndexAtBeat(beat) {
@@ -6922,6 +7760,7 @@
     function stopPlayback() {
       clearPendingCycle();
       clearTimers();
+      stopPlaybackScroll();
       clearBassHighlights();
       clearMelodyHighlights();
       clearDrumHighlights();
@@ -6969,6 +7808,7 @@
       const safeStart = ((startIndex % currentChords.length) + currentChords.length) % currentChords.length;
       let cursor = 0;
       const startBeat = chordStarts[safeStart] || 0;
+      const totalBeats = currentChords.reduce((sum, chord) => sum + chord.duration, 0);
 
       setActiveChord(safeStart);
       clearBassHighlights();
@@ -6978,6 +7818,7 @@
       if (midiEnabled) {
         ensureMidi();
       }
+      startPlaybackScroll(startBeat, totalBeats, beatSec);
 
       const baseMs = performance.now();
       for (let i = safeStart; i < currentChords.length; i++) {
@@ -7104,6 +7945,9 @@
 
     function updateReadouts() {
       barsReadout.textContent = `${barsInput.value} bars`;
+      if (formComplexityReadout && formComplexityInput) {
+        formComplexityReadout.textContent = `${formComplexityInput.value}%`;
+      }
       densityReadout.textContent = `${densityInput.value}%`;
       colorReadout.textContent = `${colorInput.value}%`;
       modulationReadout.textContent = `${modulationInput.value}%`;
@@ -7180,6 +8024,8 @@
         seed: seedInput?.value || "",
         key: keySelect?.value || "",
         bars: barsInput?.value || "",
+        formOn: formEnabled,
+        formComplexity: formComplexityInput?.value || "",
         density: densityInput?.value || "",
         color: colorInput?.value || "",
         modulation: modulationInput?.value || "",
@@ -7267,7 +8113,12 @@
     }
 
     function prepareChordRegenCycle(seedLabel, previousSeed) {
-      const bars = parseInt(barsInput.value, 10);
+      let bars = parseInt(barsInput.value, 10);
+      if (formEnabled && (!Number.isFinite(bars) || bars < 8)) {
+        bars = 8;
+        if (barsInput) barsInput.value = "8";
+      }
+      const formComplexityValue = normalizePercent(formComplexityInput?.value, 0);
       const densityPercent = Math.max(0, Math.min(100, parseInt(densityInput.value, 10) || 0));
       const colorPercent = Math.max(0, Math.min(100, parseInt(colorInput.value, 10) || 0));
       const modulationPercent = Math.max(0, Math.min(100, parseInt(modulationInput.value, 10) || 0));
@@ -7300,8 +8151,13 @@
         subdivisionDensity,
         genre,
         modulationPercent,
-        colorPercent
+        colorPercent,
+        formEnabled,
+        formComplexity: formComplexityValue
       });
+      const formSections = (formEnabled && currentFormSections.length)
+        ? currentFormSections.map(section => ({ ...section }))
+        : [];
 
       let nextBassCounter = bassSeedCounter;
       let nextMelodyCounter = melodySeedCounter;
@@ -7318,7 +8174,7 @@
         const bassMainGenre = blendMains || (bassGenreMain?.value || genreMain?.value || "");
         const seedInfo = buildSeedLabelWithCounter(seedLabel, nextBassCounter, "bass", false);
         nextBassCounter = seedInfo.counter;
-        bass = generateBassLine({
+        const bassOptions = {
           chords,
           seed: seedInfo.seed,
           densityPercent: parseInt(bassDensityInput?.value, 10) || 0,
@@ -7330,8 +8186,12 @@
           style: bassStyleInput?.value || "auto",
           register: parseInt(bassRegisterInput?.value, 10) || 36,
           genre: bassGenre,
-          mainGenre: bassMainGenre
-        });
+          mainGenre: bassMainGenre,
+          formComplexity: formComplexityValue
+        };
+        bass = (songMode && formSections.length)
+          ? generateBassLineWithForm({ ...bassOptions, sections: formSections })
+          : generateBassLine(bassOptions);
       }
 
       let melody = [];
@@ -7340,7 +8200,7 @@
         const melodyMainGenre = blendMains || (melodyGenreMain?.value || genreMain?.value || "");
         const seedInfo = buildSeedLabelWithCounter(seedLabel, nextMelodyCounter, "melody", false);
         nextMelodyCounter = seedInfo.counter;
-        melody = generateMelodyLine({
+        const melodyOptions = {
           chords,
           seed: seedInfo.seed,
           densityPercent: parseInt(melodyDensityInput?.value, 10) || 0,
@@ -7352,8 +8212,12 @@
           style: melodyStyleInput?.value || "auto",
           register: parseInt(melodyRegisterInput?.value, 10) || 72,
           genre: melodyGenre,
-          mainGenre: melodyMainGenre
-        });
+          mainGenre: melodyMainGenre,
+          formComplexity: formComplexityValue
+        };
+        melody = (songMode && formSections.length)
+          ? generateMelodyLineWithForm({ ...melodyOptions, sections: formSections })
+          : generateMelodyLine(melodyOptions);
       }
 
       let drums = [];
@@ -7362,7 +8226,7 @@
         nextDrumCounter = seedInfo.counter;
         const drumMain = blendMains || (drumGenreMain?.value || genreMain?.value || "");
         const drumSub = blendSubs || (drumGenreSub?.value || genreSub?.value || "base");
-        drums = generateDrumPattern({
+        const drumOptions = {
           bars,
           seed: seedInfo.seed,
           densityPercent: parseInt(drumDensityInput?.value, 10) || 0,
@@ -7372,8 +8236,12 @@
           velocityPercent: parseInt(drumVelocityInput?.value, 10) || 100,
           style: drumStyleInput?.value || "auto",
           genre: drumSub,
-          mainGenre: drumMain
-        });
+          mainGenre: drumMain,
+          formComplexity: formComplexityValue
+        };
+        drums = (songMode && formSections.length)
+          ? generateDrumPatternWithForm({ ...drumOptions, sections: formSections })
+          : generateDrumPattern(drumOptions);
       }
 
       return {
@@ -7392,6 +8260,8 @@
         bass,
         melody,
         drums,
+        formSections,
+        formComplexity: formComplexityValue,
         counters: {
           bass: nextBassCounter,
           melody: nextMelodyCounter,
@@ -7412,6 +8282,7 @@
       currentBass = cycle.bass || [];
       currentMelody = cycle.melody || [];
       currentDrums = cycle.drums || [];
+      currentFormSections = cycle.formSections || [];
       applySeedLabel(cycle.seedLabel, markSeedRandom);
       currentFileName = `${sanitizeFileName(cycle.seedLabel)}.mid`;
       rebuildMidi();
@@ -7437,6 +8308,9 @@
       if (drumTrack) {
         drumTrack.style.width = `${totalWidth}px`;
       }
+      if (formLane) {
+        formLane.style.width = `${totalWidth}px`;
+      }
       const maxScroll = Math.max(0, timelineView.scrollWidth - timelineView.clientWidth);
       timelineScroll.max = String(maxScroll);
       timelineScroll.value = "0";
@@ -7448,6 +8322,7 @@
         label.textContent = `Bar ${bar + 1}`;
         ruler.appendChild(label);
       }
+      renderFormLane(cycle.formSections, cycle.bars, beatPx);
 
       let beatCursor = 0;
       chordStarts = [];
@@ -7484,7 +8359,10 @@
       renderProgressionHighlight(currentChordIndex);
       const subdivisionLabel = cycle.subdivision === "mixed" ? "even+triplet" : "even";
       const seedDisplay = cycle.seedLabel.startsWith("$eed") ? cycle.seedLabel : `$eed ${cycle.seedLabel}`;
-      footer.textContent = `Key ${cycle.keyLabel} | ${cycle.bars} bars | ${cycle.bpm} BPM | ${cycle.genreLabel} | density ${cycle.densityPercent}% | color ${cycle.colorPercent}% | mod ${cycle.modulationPercent}% | ${subdivisionLabel} | subdiv ${Math.round(cycle.subdivisionDensity * 100)}% | ${seedDisplay}`;
+      const formLabel = (cycle.formSections && cycle.formSections.length)
+        ? ` | form ${cycle.formComplexity ?? 0}%`
+        : "";
+      footer.textContent = `Key ${cycle.keyLabel} | ${cycle.bars} bars | ${cycle.bpm} BPM | ${cycle.genreLabel} | density ${cycle.densityPercent}% | color ${cycle.colorPercent}% | mod ${cycle.modulationPercent}% | ${subdivisionLabel} | subdiv ${Math.round(cycle.subdivisionDensity * 100)}%${formLabel} | ${seedDisplay}`;
     }
 
     function clearPendingCycle() {
@@ -7778,19 +8656,22 @@
       "- MIDI out: WebMIDI in Chrome, defaults to Logic Pro Virtual In/Out, follows external clock when detected.",
       "- MIDI velocity: Sets chord + bass + melody + drum velocity while MIDI Out is on.",
       "- Bars: Length of the progression.",
+      "- Form: Toggle song form for longer progressions (auto bumps to 8+ bars); complexity controls the layout.",
       "- Harmonic density (%): How busy the harmony feels.",
       "- Color (%): How extended the chord voicings are (higher = more extensions).",
       "- Theme: Use the bottom slider to shift the overall palette.",
       "- Modulation amount (%): Likelihood of key shifts.",
       "- Subdivision density (%): How often bars subdivide.",
       "- Subdivision mode: Even only or even + triplet feel.",
+      "- Form lane: Section labels appear under the bar ruler.",
       "- Bass controls ($ong): Genre/subgenre, density, movement, color, fills, subdivision, style, register, and channel.",
       "- Melody controls ($ong): Genre/subgenre, density, movement, color, fills, subdivision, style, register, and channel.",
       "- Drum controls ($ong): Genre/subgenre, fills, ghost notes, velocity, plus style (GM drums on MIDI ch 4).",
+      "- $ong mode follows form sections with dynamics and repeated motifs.",
       "- Drum genre is independent from chord/bass/melody genre if you want.",
       "- Bass fills (%): Scale-based fill notes (0% none, 100% every chord).",
       "- Melody fills (%): Melodic fill notes within the chord scale.",
-      "- Track VOL: Per-panel audio level (hidden when MIDI Out is on).",
+      "- Track VOL: Per-panel audio level (center = current loudness, can boost louder).",
       "- Select: Drag a box over clips, then hit ¢hords/฿ass/Melody/Drums to replace only the selection.",
       "- Loop/Regen (per track): Loop that track or regenerate it at the end.",
       "- Mute icons: Toggle chord/bass/melody/drums audio + MIDI.",
@@ -8107,8 +8988,37 @@
 
     barsInput.addEventListener("input", () => {
       seedDrivesSettings = false;
+      if (formEnabled) {
+        const nextValue = parseInt(barsInput.value, 10) || 0;
+        if (nextValue < 8) {
+          barsInput.value = "8";
+        }
+      }
       updateReadouts();
     });
+    if (formToggle) {
+      formToggle.addEventListener("click", () => {
+        seedDrivesSettings = false;
+        setFormEnabledState(!formEnabled);
+        if (formEnabled && barsInput) {
+          const nextValue = parseInt(barsInput.value, 10) || 0;
+          if (nextValue < 8) {
+            barsInput.value = "8";
+          }
+        }
+        updateReadouts();
+        render();
+      });
+    }
+    if (formComplexityInput) {
+      formComplexityInput.addEventListener("input", () => {
+        seedDrivesSettings = false;
+        updateReadouts();
+        if (formEnabled) {
+          render();
+        }
+      });
+    }
     densityInput.addEventListener("input", () => {
       seedDrivesSettings = false;
       updateReadouts();
