@@ -573,6 +573,40 @@
       max-width: 100%;
     }
 
+    .blend-toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .blend-add {
+      display: none;
+    }
+
+    .blend-selects {
+      display: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .blend-selects .blend-select {
+      width: 100%;
+    }
+
+    .blend-mode .blend-add {
+      display: inline-flex;
+    }
+
+    .blend-mode #genreRow {
+      display: none;
+    }
+
+    .blend-mode .blend-selects {
+      display: grid;
+    }
+
     input, select, button {
       font-family: inherit;
       font-size: 12px;
@@ -1099,11 +1133,16 @@
             </label>
             <label>
               Genre
-              <div class="genre-row">
+              <div class="genre-row" id="genreRow">
                 <select id="genreMain"></select>
                 <select id="genreSub"></select>
               </div>
             </label>
+            <div class="blend-toggle-row">
+              <button id="blendToggle" class="secondary small-toggle" type="button">Blend</button>
+              <button id="blendAdd" class="secondary small-toggle blend-add" type="button">+</button>
+            </div>
+            <div id="blendSelects" class="blend-selects"></div>
             <label>
               Bars
               <input id="bars" type="range" min="4" max="32" value="4" />
@@ -3062,12 +3101,162 @@
       return chords;
     }
 
-    function generateProgression({ bars, key, densityPercent, seed, subdivision, subdivisionDensity, genre, modulationPercent, colorPercent }) {
+    function generateBlendedProgression({
+      bars,
+      key,
+      densityPercent,
+      seed,
+      subdivision,
+      subdivisionDensity,
+      genres,
+      modulationPercent,
+      colorPercent
+    }) {
       const rng = makeRng(seed);
       const totalBars = Math.max(4, bars);
       const totalBeats = totalBars * 4;
       const keyIndex = noteNames.indexOf(key);
-      const profile = genreProfiles[genre] || genreProfiles.base;
+      const genreList = (Array.isArray(genres) ? genres : [genres]).filter(Boolean);
+      const profileEntries = genreList.length
+        ? genreList.map(genreKey => ({
+          key: genreKey,
+          profile: genreProfiles[genreKey] || genreProfiles.base
+        }))
+        : [{ key: "base", profile: genreProfiles.base }];
+
+      let beatsRemaining = totalBeats;
+      let functionState = "predom";
+      const chords = [];
+      let chordIndex = 0;
+      let currentKeyIndex = keyIndex;
+      const templateState = new Map();
+
+      for (let bar = 0; bar < totalBars; bar++) {
+        currentKeyIndex = maybeModulateKey(currentKeyIndex, keyIndex, rng, modulationPercent);
+        const entry = pick(profileEntries, rng);
+        const barProfile = entry.profile || genreProfiles.base;
+        const densityAdjusted = Math.max(0, Math.min(100, densityPercent + (barProfile.densityBias || 0)));
+        const subdivisionAdjusted = Math.max(0, Math.min(1, subdivisionDensity + (barProfile.subdivisionBias || 0)));
+        const allowTriplets = barProfile.allowTriplets !== false;
+        const allowDense = barProfile.allowDense !== false;
+        const pattern = chooseSubdivisionPattern({
+          densityAdjusted,
+          subdivisionAdjusted,
+          allowTriplets,
+          allowDense,
+          subdivisionMode: subdivision,
+          rng
+        });
+
+        let barDef = null;
+        if (barProfile.type === "blues" && barProfile.bluesBars) {
+          barDef = barProfile.bluesBars[bar % barProfile.bluesBars.length];
+        }
+
+        let templateEntry = null;
+        if (barProfile.type === "template" && barProfile.templates && barProfile.templates.length) {
+          templateEntry = templateState.get(entry.key);
+          if (!templateEntry) {
+            templateEntry = { template: pick(barProfile.templates, rng), index: 0 };
+            templateState.set(entry.key, templateEntry);
+          }
+        }
+
+        for (let i = 0; i < pattern.length; i++) {
+          let degree = "I";
+          let quality = "maj";
+
+          if (barProfile.type === "blues" && barDef) {
+            const baseDegree = typeof barDef === "string" ? barDef : barDef.base;
+            const passing = typeof barDef === "string" ? [] : (barDef.passing || []);
+            degree = baseDegree;
+            if (i > 0 && passing.length) {
+              degree = pick(passing, rng);
+            }
+            quality = pickBluesQuality(degree, barProfile, rng);
+          } else if (barProfile.type === "template" && templateEntry) {
+            degree = templateEntry.template[templateEntry.index % templateEntry.template.length];
+            templateEntry.index += 1;
+            const qualityPool = barProfile.degreeQualities && barProfile.degreeQualities[degree];
+            if (qualityPool && qualityPool.length) {
+              quality = pick(qualityPool, rng);
+            } else if (degree === degree.toLowerCase()) {
+              quality = "m";
+            } else {
+              quality = "maj";
+            }
+          } else {
+            const functions = barProfile.functions || genreProfiles.base.functions;
+            const isPhraseEnd = (bar % 4 === 3) && (i === pattern.length - 1);
+            const isPhrasePrep = (bar % 4 === 3) && (i === pattern.length - 2);
+
+            if (isPhraseEnd) {
+              functionState = "tonic";
+            } else if (isPhrasePrep) {
+              functionState = "dominant";
+            } else {
+              if (functionState === "tonic") {
+                functionState = rng() < 0.7 ? "predom" : "dominant";
+              } else if (functionState === "predom") {
+                functionState = rng() < 0.75 ? "dominant" : "predom";
+              } else {
+                functionState = rng() < 0.7 ? "tonic" : "predom";
+              }
+            }
+
+            const choice = pick(functions[functionState], rng);
+            degree = choice.degree;
+            quality = choice.quality;
+          }
+
+          const offset = degreeOffsets[degree] ?? 0;
+          const rootIndex = (currentKeyIndex + offset + 12) % 12;
+          const colorSeed = `${seed}|color|${chordIndex}`;
+          const coloredQuality = applyColorToQuality(quality, colorPercent, colorSeed);
+          const voicingSeed = `${seed}|voice|${chordIndex}`;
+          const notes = buildChord(rootIndex, coloredQuality, makeRng(voicingSeed));
+          const duration = pattern[i];
+
+          chords.push({
+            name: chordName(rootIndex, coloredQuality),
+            quality: coloredQuality,
+            duration,
+            notes
+          });
+          chordIndex += 1;
+          beatsRemaining -= duration;
+        }
+      }
+
+      if (beatsRemaining > 0.01 && chords.length) {
+        const last = chords[chords.length - 1];
+        last.duration += beatsRemaining;
+      }
+      return chords;
+    }
+
+    function generateProgression({ bars, key, densityPercent, seed, subdivision, subdivisionDensity, genre, modulationPercent, colorPercent }) {
+      const genreList = Array.isArray(genre) ? genre.filter(Boolean) : [genre];
+      if (genreList.length > 1) {
+        return generateBlendedProgression({
+          bars,
+          key,
+          densityPercent,
+          seed,
+          subdivision,
+          subdivisionDensity,
+          genres: genreList,
+          modulationPercent,
+          colorPercent
+        });
+      }
+
+      const rng = makeRng(seed);
+      const totalBars = Math.max(4, bars);
+      const totalBeats = totalBars * 4;
+      const keyIndex = noteNames.indexOf(key);
+      const resolvedGenre = genreList[0] || "base";
+      const profile = genreProfiles[resolvedGenre] || genreProfiles.base;
 
       if (profile.type === "blues") {
         return generateBluesProgression({
@@ -3233,6 +3422,42 @@
       return profile;
     }
 
+    function blendTrackProfiles(profiles, rng, fallbackStyle = "root") {
+      if (!profiles.length) {
+        return {
+          style: fallbackStyle,
+          densityBias: 0,
+          movementBias: 0,
+          subdivisionBias: 0,
+          registerBias: 0,
+          fillBias: 0
+        };
+      }
+      const styles = profiles.map(profile => profile.style).filter(Boolean);
+      const style = styles.length ? pick(styles, rng) : fallbackStyle;
+      const average = (key) => {
+        const sum = profiles.reduce((total, profile) => total + (profile[key] || 0), 0);
+        return sum / profiles.length;
+      };
+      return {
+        style,
+        densityBias: average("densityBias"),
+        movementBias: average("movementBias"),
+        subdivisionBias: average("subdivisionBias"),
+        registerBias: average("registerBias"),
+        fillBias: average("fillBias")
+      };
+    }
+
+    function getBassProfileBlend(genreKey, mainKey, rng) {
+      if (!Array.isArray(genreKey)) {
+        return getBassProfile(genreKey, mainKey);
+      }
+      const mainList = Array.isArray(mainKey) ? mainKey : [];
+      const profiles = genreKey.map((key, index) => getBassProfile(key, mainList[index] || mainList[0] || ""));
+      return blendTrackProfiles(profiles, rng, "root");
+    }
+
     function chooseBassDurations(duration, densityPercent, subdivisionDensity, allowTriplets, rng) {
       const density = Math.max(0, Math.min(100, densityPercent)) / 100;
       const subdiv = Math.max(0, Math.min(100, subdivisionDensity)) / 100;
@@ -3356,7 +3581,9 @@
       mainGenre
     }) {
       if (!chords || !chords.length) return [];
-      const profile = getBassProfile(genre, mainGenre);
+      const genreSeed = Array.isArray(genre) ? genre.join("+") : (genre || "base");
+      const rng = makeRng(`${seed}|bass|${genreSeed}`);
+      const profile = getBassProfileBlend(genre, mainGenre, rng);
       const resolvedStyle = style === "auto" ? profile.style : style;
       const densityAdjusted = clampValue(densityPercent + profile.densityBias, 0, 100);
       const movementAdjusted = clampValue(movementPercent + profile.movementBias, 0, 100);
@@ -3365,7 +3592,6 @@
       const fillAdjusted = clampValue((fillPercent || 0) + profile.fillBias, 0, 100);
       const colorAdjusted = clampValue(colorPercent ?? 50, 0, 100);
       const fillChance = fillAdjusted / 100;
-      const rng = makeRng(`${seed}|bass|${genre || "base"}`);
       const bassNotes = [];
       const rangeMin = Math.max(20, Math.min(60, registerAdjusted));
       const rangeMax = rangeMin + 12;
@@ -3530,6 +3756,15 @@
       return profile;
     }
 
+    function getMelodyProfileBlend(genreKey, mainKey, rng) {
+      if (!Array.isArray(genreKey)) {
+        return getMelodyProfile(genreKey, mainKey);
+      }
+      const mainList = Array.isArray(mainKey) ? mainKey : [];
+      const profiles = genreKey.map((key, index) => getMelodyProfile(key, mainList[index] || mainList[0] || ""));
+      return blendTrackProfiles(profiles, rng, "step");
+    }
+
     function chooseMelodyDurations(duration, densityPercent, subdivisionDensity, allowTriplets, rng) {
       const boosted = Math.min(100, (densityPercent || 0) + 15);
       return chooseBassDurations(duration, boosted, subdivisionDensity, allowTriplets, rng);
@@ -3560,7 +3795,9 @@
       mainGenre
     }) {
       if (!chords || !chords.length) return [];
-      const profile = getMelodyProfile(genre, mainGenre);
+      const genreSeed = Array.isArray(genre) ? genre.join("+") : (genre || "base");
+      const rng = makeRng(`${seed}|melody|${genreSeed}`);
+      const profile = getMelodyProfileBlend(genre, mainGenre, rng);
       const resolvedStyle = style === "auto" ? profile.style : style;
       const densityAdjusted = clampValue(densityPercent + profile.densityBias, 0, 100);
       const movementAdjusted = clampValue(movementPercent + profile.movementBias, 0, 100);
@@ -3569,7 +3806,6 @@
       const fillAdjusted = clampValue((fillPercent || 0) + profile.fillBias, 0, 100);
       const colorAdjusted = clampValue(colorPercent ?? 50, 0, 100);
       const fillChance = fillAdjusted / 100;
-      const rng = makeRng(`${seed}|melody|${genre || "base"}`);
       const melodyNotes = [];
       const rangeMin = Math.max(48, Math.min(84, registerAdjusted));
       const rangeMax = rangeMin + 24;
@@ -3839,7 +4075,8 @@
       mainGenre
     }) {
       const rng = makeRng(`${seed}-drums`);
-      const resolvedStyle = resolveDrumStyle(mainGenre, genre, style);
+      const genreList = Array.isArray(genre) ? genre.filter(Boolean) : [genre];
+      const mainList = Array.isArray(mainGenre) ? mainGenre : [mainGenre];
       const density = Math.max(0, Math.min(100, densityPercent)) / 100;
       const complexity = Math.max(0, Math.min(100, complexityPercent)) / 100;
       const fills = Math.max(0, Math.min(100, fillPercent || 0)) / 100;
@@ -3860,23 +4097,6 @@
         tomHigh: 50
       };
 
-      const preset = getDrumPatternPreset(genre, mainGenre, resolvedStyle, rng);
-      const stepsPerBar = preset.stepsPerBar;
-      const stepBeat = 4 / stepsPerBar;
-      const hatKeep = Math.min(1, 0.45 + density * 0.55);
-      const hatSteps = (preset.hat || []).filter(step => rng() < hatKeep);
-      const rideSteps = preset.ride || [];
-      const kickSteps = preset.kick || [];
-      const snareSteps = preset.snare || [];
-      const rimSteps = preset.rim || [];
-      const clapSteps = preset.clap || [];
-      const ghostSteps = (preset.ghost && preset.ghost.length)
-        ? preset.ghost
-        : (ghosts > 0.25 ? [2, 6, 10, 14].filter(step => step < stepsPerBar) : []);
-      const openHatSteps = preset.openHat || [];
-      const extraKick = preset.extraKick || [];
-      const tomFill = preset.tomFill || [];
-
       function pushHit(step, note, velocity, durSteps = 1, barIndex, seen) {
         const key = `${step}-${note}`;
         if (seen.has(key)) return;
@@ -3891,6 +4111,26 @@
       }
 
       for (let bar = 0; bar < bars; bar++) {
+        const pickIndex = genreList.length ? Math.floor(rng() * genreList.length) : 0;
+        const barGenre = genreList[pickIndex] || genre;
+        const barMain = mainList[pickIndex] || mainList[0] || mainGenre || "";
+        const resolvedStyle = resolveDrumStyle(barMain, barGenre, style);
+        const preset = getDrumPatternPreset(barGenre, barMain, resolvedStyle, rng);
+        const stepsPerBar = preset.stepsPerBar;
+        const stepBeat = 4 / stepsPerBar;
+        const hatKeep = Math.min(1, 0.45 + density * 0.55);
+        const hatSteps = (preset.hat || []).filter(step => rng() < hatKeep);
+        const rideSteps = preset.ride || [];
+        const kickSteps = preset.kick || [];
+        const snareSteps = preset.snare || [];
+        const rimSteps = preset.rim || [];
+        const clapSteps = preset.clap || [];
+        const ghostSteps = (preset.ghost && preset.ghost.length)
+          ? preset.ghost
+          : (ghosts > 0.25 ? [2, 6, 10, 14].filter(step => step < stepsPerBar) : []);
+        const openHatSteps = preset.openHat || [];
+        const extraKick = preset.extraKick || [];
+        const tomFill = preset.tomFill || [];
         const seen = new Set();
         const hatNote = preset.hatNote || notes.closedHat;
 
@@ -4226,6 +4466,7 @@
       drumTrack.innerHTML = "";
       drumClips = [];
       activeDrumClips.clear();
+      updateDrumVelocityMax();
       if (!currentDrums || !currentDrums.length) {
         drumTrack.style.height = "64px";
         return;
@@ -4286,6 +4527,9 @@
     function regenerateBass(forceNew = false) {
       if (!currentChords.length) return;
       const seedLabel = currentSeed || seedInput?.value || "$eed-bass";
+      const seedBlend = getActiveBlend(seedLabel);
+      const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
+      const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const bassSeed = getBassSeedLabel(seedLabel, forceNew);
       currentBass = generateBassLine({
         chords: currentChords,
@@ -4298,8 +4542,8 @@
         subdivisionMode: bassSubdivisionInput?.value || "even",
         style: bassStyleInput?.value || "auto",
         register: parseInt(bassRegisterInput?.value, 10) || 36,
-        genre: bassGenreSub?.value || genreSub?.value || "base",
-        mainGenre: bassGenreMain?.value || genreMain?.value || ""
+        genre: blendSubs || (bassGenreSub?.value || genreSub?.value || "base"),
+        mainGenre: blendMains || (bassGenreMain?.value || genreMain?.value || "")
       });
       bassAutoRegenerate = true;
       renderBassTrack();
@@ -4318,6 +4562,9 @@
     function regenerateMelody(forceNew = false) {
       if (!currentChords.length) return;
       const seedLabel = currentSeed || seedInput?.value || "$eed-melody";
+      const seedBlend = getActiveBlend(seedLabel);
+      const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
+      const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const melodySeed = getMelodySeedLabel(seedLabel, forceNew);
       currentMelody = generateMelodyLine({
         chords: currentChords,
@@ -4330,8 +4577,8 @@
         subdivisionMode: melodySubdivisionInput?.value || "even",
         style: melodyStyleInput?.value || "auto",
         register: parseInt(melodyRegisterInput?.value, 10) || 72,
-        genre: melodyGenreSub?.value || genreSub?.value || "base",
-        mainGenre: melodyGenreMain?.value || genreMain?.value || ""
+        genre: blendSubs || (melodyGenreSub?.value || genreSub?.value || "base"),
+        mainGenre: blendMains || (melodyGenreMain?.value || genreMain?.value || "")
       });
       melodyAutoRegenerate = true;
       renderMelodyTrack();
@@ -4350,9 +4597,12 @@
     function regenerateDrums(forceNew = false) {
       if (!currentChords.length) return;
       const seedLabel = currentSeed || seedInput?.value || "$eed-drums";
+      const seedBlend = getActiveBlend(seedLabel);
+      const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
+      const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const drumSeed = getDrumSeedLabel(seedLabel, forceNew);
-      const drumMain = drumGenreMain?.value || genreMain?.value || "";
-      const drumSub = drumGenreSub?.value || genreSub?.value || "base";
+      const drumMain = blendMains || (drumGenreMain?.value || genreMain?.value || "");
+      const drumSub = blendSubs || (drumGenreSub?.value || genreSub?.value || "base");
       currentDrums = generateDrumPattern({
         bars: parseInt(barsInput?.value, 10) || 4,
         seed: drumSeed,
@@ -4383,6 +4633,8 @@
       stopPlayback();
       currentKeyUsed = "C";
       currentKeyLabel = "C";
+      manualBlendGenres = [];
+      manualBlendEnabled = false;
       seedIsRandom = false;
       seedDrivesSettings = false;
       seedManual = false;
@@ -4450,6 +4702,7 @@
       setTrackPlaybackMode("bass", "loop");
       setTrackPlaybackMode("melody", "loop");
       setTrackPlaybackMode("drum", "loop");
+      syncBlendSelects([]);
       updateTrackGains();
       if (midiEnabled) {
         midiEnabled = false;
@@ -4489,6 +4742,9 @@
     const keySelect = document.getElementById("keySelect");
     const genreMain = document.getElementById("genreMain");
     const genreSub = document.getElementById("genreSub");
+    const blendToggle = document.getElementById("blendToggle");
+    const blendAdd = document.getElementById("blendAdd");
+    const blendSelects = document.getElementById("blendSelects");
     const tempoInput = document.getElementById("tempo");
     const tempoReadout = document.getElementById("tempoReadout");
     const chordLoopButton = document.getElementById("chordLoopMode");
@@ -4807,7 +5063,6 @@
     if (melodyGenreMain && melodyGenreSub && genreMain && genreSub) {
       populateGenreSelectsFor(melodyGenreMain, melodyGenreSub, genreMain.value, genreSub.value);
     }
-
     function buildGenreLookup() {
       const subToMain = {};
       const labelToSub = {};
@@ -4822,6 +5077,166 @@
     }
 
     const genreLookup = buildGenreLookup();
+
+    function normalizeGenreToken(value) {
+      return (value || "")
+        .toString()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+    }
+
+    function collapseGenreToken(value) {
+      return normalizeGenreToken(value).replace(/\s+/g, "");
+    }
+
+    function escapeRegex(value) {
+      return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function findGenreTokenIndex(text, token) {
+      if (!text || !token) return -1;
+      const pattern = new RegExp(`\\b${escapeRegex(token)}\\b`, "i");
+      const match = text.match(pattern);
+      return match ? match.index : -1;
+    }
+
+    function getSeedGenreBlend(seedText) {
+      if (!seedText) return null;
+      const normalized = normalizeGenreToken(seedText);
+      if (!normalized) return null;
+      const collapsed = normalized.replace(/\s+/g, "");
+      const matchMap = new Map();
+      const mainFallback = new Map();
+
+      Object.keys(genreCatalog).forEach(mainKey => {
+        const group = genreCatalog[mainKey];
+        const mainToken = normalizeGenreToken(group.label || mainKey);
+        if (mainToken) {
+          const idx = findGenreTokenIndex(normalized, mainToken);
+          if (idx >= 0) {
+            mainFallback.set(mainKey, idx);
+          }
+        }
+        Object.keys(group.sub).forEach(subKey => {
+          const tokens = [
+            normalizeGenreToken(subKey),
+            normalizeGenreToken(group.sub[subKey])
+          ];
+          tokens.forEach(token => {
+            if (!token) return;
+            let idx = findGenreTokenIndex(normalized, token);
+            if (idx < 0) {
+              const collapsedToken = collapseGenreToken(token);
+              if (collapsedToken && collapsed.includes(collapsedToken)) {
+                idx = collapsed.indexOf(collapsedToken);
+              }
+            }
+            if (idx >= 0) {
+              const existing = matchMap.get(subKey);
+              if (existing === undefined || idx < existing) {
+                matchMap.set(subKey, idx);
+              }
+            }
+          });
+        });
+      });
+
+      if (!matchMap.size && !mainFallback.size) {
+        return null;
+      }
+
+      const matches = Array.from(matchMap.entries())
+        .sort((a, b) => a[1] - b[1])
+        .map(([subKey]) => subKey);
+
+      if (!matches.length && mainFallback.size) {
+        const mainEntries = Array.from(mainFallback.entries()).sort((a, b) => a[1] - b[1]);
+        mainEntries.forEach(([mainKey]) => {
+          const fallbackSub = Object.keys(genreCatalog[mainKey].sub)[0];
+          if (fallbackSub) matches.push(fallbackSub);
+        });
+      }
+
+      if (!matches.length) return null;
+      const mains = matches.map(subKey => genreLookup.subToMain[subKey] || "");
+      return { subs: matches, mains };
+    }
+
+    function getSubGenreLabel(subKey) {
+      const main = genreLookup.subToMain[subKey];
+      if (main && genreCatalog[main] && genreCatalog[main].sub[subKey]) {
+        return genreCatalog[main].sub[subKey];
+      }
+      return subKey;
+    }
+
+    function getActiveBlend(seedText) {
+      if (manualBlendEnabled && manualBlendGenres.length) {
+        return {
+          subs: manualBlendGenres.map(value => {
+            const parts = value.split(":");
+            return parts[1] || value;
+          }),
+          mains: manualBlendGenres.map(value => {
+            const parts = value.split(":");
+            return parts[0] || genreLookup.subToMain[value] || "";
+          })
+        };
+      }
+      return getSeedGenreBlend(seedText);
+    }
+
+    function buildBlendSelect(selectedValue) {
+      const select = document.createElement("select");
+      select.className = "blend-select";
+      Object.keys(genreCatalog).forEach(mainKey => {
+        const sub = genreCatalog[mainKey].sub;
+        Object.keys(sub).forEach(subKey => {
+          const option = document.createElement("option");
+          option.value = `${mainKey}:${subKey}`;
+          option.textContent = `${sub[subKey]} (${genreCatalog[mainKey].label})`;
+          select.appendChild(option);
+        });
+      });
+      if (selectedValue) {
+        select.value = selectedValue;
+      }
+      select.addEventListener("change", () => {
+        updateManualBlendFromSelects();
+      });
+      return select;
+    }
+
+    function updateManualBlendFromSelects(forceEnable = false) {
+      if (!blendSelects) return;
+      const values = Array.from(blendSelects.querySelectorAll("select"))
+        .map(select => select.value)
+        .filter(Boolean);
+      const seen = new Set();
+      manualBlendGenres = values.filter(value => {
+        if (seen.has(value)) return false;
+        seen.add(value);
+        return true;
+      });
+      const body = document.body;
+      const blendActive = (body && body.classList.contains("blend-mode")) || forceEnable;
+      manualBlendEnabled = blendActive && manualBlendGenres.length > 0;
+    }
+
+    function syncBlendSelects(values) {
+      if (!blendSelects) return;
+      blendSelects.innerHTML = "";
+      const list = values && values.length ? values.slice(0, 4) : [];
+      if (!list.length) {
+        list.push("");
+      }
+      list.forEach(value => {
+        const select = buildBlendSelect(value);
+        blendSelects.appendChild(select);
+      });
+      updateManualBlendFromSelects();
+    }
 
     function applyGenreFromSeed(seedText) {
       if (!genreMain || !genreSub || !seedText) return false;
@@ -4871,7 +5286,32 @@
 
     function applySeedSettings(seedText) {
       if (!seedText) return;
-      const usedExplicit = applyGenreFromSeed(seedText);
+      const blend = getSeedGenreBlend(seedText);
+      const hasBlend = !!(blend && blend.subs.length);
+      let usedExplicit = false;
+      if (hasBlend) {
+        const mainKey = blend.mains[0] || genreLookup.subToMain[blend.subs[0]];
+        const subKey = blend.subs[0];
+        if (mainKey && genreMain && genreSub) {
+          genreMain.value = mainKey;
+          populateSubgenres(mainKey, subKey);
+          usedExplicit = true;
+        }
+        if (bassGenreMain && bassGenreSub && mainKey) {
+          bassGenreMain.value = mainKey;
+          populateSubgenresFor(mainKey, bassGenreSub, subKey);
+        }
+        if (melodyGenreMain && melodyGenreSub && mainKey) {
+          melodyGenreMain.value = mainKey;
+          populateSubgenresFor(mainKey, melodyGenreSub, subKey);
+        }
+        if (drumGenreMain && drumGenreSub && mainKey) {
+          drumGenreMain.value = mainKey;
+          populateSubgenresFor(mainKey, drumGenreSub, subKey);
+        }
+      } else {
+        usedExplicit = applyGenreFromSeed(seedText);
+      }
       const rng = makeRng(`${seedText}|settings`);
       if (!usedExplicit && genreMain && genreSub) {
         const mainKeys = Object.keys(genreCatalog);
@@ -4897,15 +5337,15 @@
         const styles = Array.from(drumStyleInput.options).map(option => option.value);
         drumStyleInput.value = styles[Math.floor(rng() * styles.length)] || "auto";
       }
-      if (drumGenreMain && drumGenreSub && genreMain && genreSub) {
+      if (!hasBlend && drumGenreMain && drumGenreSub && genreMain && genreSub) {
         drumGenreMain.value = genreMain.value;
         populateSubgenresFor(drumGenreMain.value, drumGenreSub, genreSub.value);
       }
-      if (bassGenreMain && bassGenreSub && genreMain && genreSub) {
+      if (!hasBlend && bassGenreMain && bassGenreSub && genreMain && genreSub) {
         bassGenreMain.value = genreMain.value;
         populateSubgenresFor(bassGenreMain.value, bassGenreSub, genreSub.value);
       }
-      if (melodyGenreMain && melodyGenreSub && genreMain && genreSub) {
+      if (!hasBlend && melodyGenreMain && melodyGenreSub && genreMain && genreSub) {
         melodyGenreMain.value = genreMain.value;
         populateSubgenresFor(melodyGenreMain.value, melodyGenreSub, genreSub.value);
       }
@@ -5285,6 +5725,10 @@
     let pendingCycle = null;
     let pendingCycleSignature = "";
     let pendingCycleTimer = null;
+    let currentDrumMaxVelocity = 127;
+    let manualBlendGenres = [];
+    let manualBlendEnabled = false;
+    syncBlendSelects([]);
 
     function getMidiVelocity() {
       if (!midiVelocity) return 96;
@@ -5293,11 +5737,33 @@
       return Math.max(1, Math.min(127, value));
     }
 
-    function getDrumVelocityScale() {
-      if (!drumVelocityInput) return 1;
+    function updateDrumVelocityMax() {
+      if (!currentDrums || !currentDrums.length) {
+        currentDrumMaxVelocity = 127;
+        return;
+      }
+      let max = 1;
+      currentDrums.forEach(hit => {
+        if (!hit) return;
+        const vel = Math.max(1, Math.min(127, hit.velocity || 1));
+        if (vel > max) max = vel;
+      });
+      currentDrumMaxVelocity = Math.max(1, max);
+    }
+
+    function getDrumVelocityCap() {
+      if (!drumVelocityInput) return 96;
       const value = Number(drumVelocityInput.value);
-      if (Number.isNaN(value)) return 1;
-      return Math.max(0, Math.min(1, value / 100));
+      if (Number.isNaN(value)) return 96;
+      return Math.max(1, Math.min(127, Math.round((value / 100) * 127)));
+    }
+
+    function scaleDrumVelocity(base) {
+      const baseVel = Math.max(1, Math.min(127, base || 1));
+      const max = currentDrumMaxVelocity || 127;
+      const normalized = max > 0 ? Math.max(0, Math.min(1, baseVel / max)) : 0;
+      const cap = getDrumVelocityCap();
+      return Math.max(1, Math.min(127, Math.round(normalized * cap)));
     }
 
     function getChordChannel() {
@@ -5655,9 +6121,7 @@
       const onId = setTimeout(() => {
         if (drumMuted || !isPlaying) return;
         const base = Math.max(1, Math.min(127, velocity));
-        const velScale = getDrumVelocityScale();
-        const scaled = Math.max(1, Math.min(127, Math.round(base * velScale * (getMidiVelocity() / 127))));
-        const vel = scaled;
+        const vel = scaleDrumVelocity(base);
         sendDrumNoteOn(note, vel);
       }, Math.max(0, startMs));
       const offId = setTimeout(() => {
@@ -6247,12 +6711,12 @@
       const bpm = getPlaybackBpm();
       const beatSec = 60 / bpm;
       if (!drumMuted) {
-        const vel = velocity * getDrumVelocityScale();
+        const vel = scaleDrumVelocity(velocity);
         playDrumHitAtTime(note, audioContext.currentTime, duration * beatSec, vel);
       }
       if (midiEnabled && !drumMuted) {
-        const base = Math.max(1, Math.min(127, velocity * getDrumVelocityScale()));
-        const vel = Math.max(1, Math.min(127, Math.round((base / 127) * getMidiVelocity())));
+        const base = Math.max(1, Math.min(127, velocity));
+        const vel = scaleDrumVelocity(base);
         sendDrumNoteOn(note, vel);
         const offId = setTimeout(() => {
           sendDrumNoteOff(note);
@@ -6289,7 +6753,9 @@
       const modulationPercent = Math.max(0, Math.min(100, parseInt(modulationInput.value, 10) || 0));
       const subdivision = subdivisionInput.value;
       const subdivisionDensity = Math.max(0, Math.min(100, parseInt(subdivisionDensityInput.value, 10) || 0)) / 100;
-      const genre = genreSub ? genreSub.value : "base";
+      const seedBlend = getActiveBlend(seedLabel);
+      const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
+      const genre = blendSubs || (genreSub ? genreSub.value : "base");
       const key = currentKeyUsed || keySelect.value || "C";
       const freshChords = generateProgression({
         bars,
@@ -6320,6 +6786,9 @@
         return;
       }
       const seedLabel = currentSeed || seedInput?.value || "$eed-bass";
+      const seedBlend = getActiveBlend(seedLabel);
+      const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
+      const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const bassSeed = getBassSeedLabel(seedLabel, true);
       const freshBass = generateBassLine({
         chords: currentChords,
@@ -6332,8 +6801,8 @@
         subdivisionMode: bassSubdivisionInput?.value || "even",
         style: bassStyleInput?.value || "auto",
         register: parseInt(bassRegisterInput?.value, 10) || 36,
-        genre: bassGenreSub?.value || genreSub?.value || "base",
-        mainGenre: bassGenreMain?.value || genreMain?.value || ""
+        genre: blendSubs || (bassGenreSub?.value || genreSub?.value || "base"),
+        mainGenre: blendMains || (bassGenreMain?.value || genreMain?.value || "")
       });
       selectedBassIndices.forEach((index) => {
         if (!currentBass[index] || !freshBass[index]) return;
@@ -6351,6 +6820,9 @@
         return;
       }
       const seedLabel = currentSeed || seedInput?.value || "$eed-melody";
+      const seedBlend = getActiveBlend(seedLabel);
+      const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
+      const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const melodySeed = getMelodySeedLabel(seedLabel, true);
       const freshMelody = generateMelodyLine({
         chords: currentChords,
@@ -6363,8 +6835,8 @@
         subdivisionMode: melodySubdivisionInput?.value || "even",
         style: melodyStyleInput?.value || "auto",
         register: parseInt(melodyRegisterInput?.value, 10) || 72,
-        genre: melodyGenreSub?.value || genreSub?.value || "base",
-        mainGenre: melodyGenreMain?.value || genreMain?.value || ""
+        genre: blendSubs || (melodyGenreSub?.value || genreSub?.value || "base"),
+        mainGenre: blendMains || (melodyGenreMain?.value || genreMain?.value || "")
       });
       selectedMelodyIndices.forEach((index) => {
         if (!currentMelody[index] || !freshMelody[index]) return;
@@ -6382,10 +6854,17 @@
         return;
       }
       const seedLabel = currentSeed || seedInput?.value || "$eed-drums";
+      const seedBlend = getActiveBlend(seedLabel);
+      const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
+      const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const drumSeed = getDrumSeedLabel(seedLabel, true);
-      const drumMain = drumGenreMain?.value || genreMain?.value || "";
-      const drumSub = drumGenreSub?.value || genreSub?.value || "base";
-      const resolvedStyle = resolveDrumStyle(drumMain, drumSub, drumStyleInput?.value || "auto");
+      const drumMain = blendMains || (drumGenreMain?.value || genreMain?.value || "");
+      const drumSub = blendSubs || (drumGenreSub?.value || genreSub?.value || "base");
+      const resolvedStyle = resolveDrumStyle(
+        Array.isArray(drumMain) ? drumMain[0] : drumMain,
+        Array.isArray(drumSub) ? drumSub[0] : drumSub,
+        drumStyleInput?.value || "auto"
+      );
       const notePoolByStyle = {
         jazz: [51, 42, 36, 38, 37],
         funk: [36, 38, 42, 46, 39],
@@ -6569,7 +7048,7 @@
             );
           }
           const onId = setTimeout(() => {
-            const vel = (hit.velocity || 90) * getDrumVelocityScale();
+            const vel = scaleDrumVelocity(hit.velocity || 90);
             playDrumHitAtTime(hit.note, audioContext.currentTime, hit.duration * beatSec, vel);
             setDrumClipActive(index, true);
           }, startDelayMs);
@@ -6708,6 +7187,8 @@
         tempo: tempoInput?.value || "",
         genreMain: genreMain?.value || "",
         genreSub: genreSub?.value || "",
+        blendManual: manualBlendEnabled,
+        blendList: manualBlendGenres.join("|"),
         bass: {
           on: bassAutoRegenerate,
           density: bassDensityInput?.value || "",
@@ -6717,7 +7198,9 @@
           subdivision: bassSubdivisionInput?.value || "",
           subdivisionDensity: bassSubdivisionDensityInput?.value || "",
           style: bassStyleInput?.value || "",
-          register: bassRegisterInput?.value || ""
+          register: bassRegisterInput?.value || "",
+          genreMain: bassGenreMain?.value || "",
+          genreSub: bassGenreSub?.value || ""
         },
         melody: {
           on: melodyAutoRegenerate,
@@ -6728,7 +7211,9 @@
           subdivision: melodySubdivisionInput?.value || "",
           subdivisionDensity: melodySubdivisionDensityInput?.value || "",
           style: melodyStyleInput?.value || "",
-          register: melodyRegisterInput?.value || ""
+          register: melodyRegisterInput?.value || "",
+          genreMain: melodyGenreMain?.value || "",
+          genreSub: melodyGenreSub?.value || ""
         },
         drums: {
           on: drumAutoRegenerate,
@@ -6788,10 +7273,15 @@
       const subdivision = subdivisionInput.value;
       const subdivisionDensity = Math.max(0, Math.min(100, parseInt(subdivisionDensityInput.value, 10) || 0)) / 100;
       const bpm = getPlaybackBpm();
-      const genre = genreSub ? genreSub.value : "base";
-      const genreLabel = (genreMain && genreSub && genreCatalog[genreMain.value] && genreCatalog[genreMain.value].sub[genreSub.value])
-        ? genreCatalog[genreMain.value].sub[genreSub.value]
-        : genre;
+      const seedBlend = getActiveBlend(seedLabel);
+      const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
+      const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
+      const genre = blendSubs || (genreSub ? genreSub.value : "base");
+      const genreLabel = blendSubs
+        ? blendSubs.map(getSubGenreLabel).join(" + ")
+        : ((genreMain && genreSub && genreCatalog[genreMain.value] && genreCatalog[genreMain.value].sub[genreSub.value])
+          ? genreCatalog[genreMain.value].sub[genreSub.value]
+          : genre);
       const keyChoice = keySelect.value;
       let key = keyChoice;
       let keyLabel = keyChoice;
@@ -6823,8 +7313,8 @@
 
       let bass = [];
       if (bassAutoRegenerate) {
-        const bassGenre = bassGenreSub?.value || genreSub?.value || "base";
-        const bassMainGenre = bassGenreMain?.value || genreMain?.value || "";
+        const bassGenre = blendSubs || (bassGenreSub?.value || genreSub?.value || "base");
+        const bassMainGenre = blendMains || (bassGenreMain?.value || genreMain?.value || "");
         const seedInfo = buildSeedLabelWithCounter(seedLabel, nextBassCounter, "bass", false);
         nextBassCounter = seedInfo.counter;
         bass = generateBassLine({
@@ -6845,8 +7335,8 @@
 
       let melody = [];
       if (melodyAutoRegenerate) {
-        const melodyGenre = melodyGenreSub?.value || genreSub?.value || "base";
-        const melodyMainGenre = melodyGenreMain?.value || genreMain?.value || "";
+        const melodyGenre = blendSubs || (melodyGenreSub?.value || genreSub?.value || "base");
+        const melodyMainGenre = blendMains || (melodyGenreMain?.value || genreMain?.value || "");
         const seedInfo = buildSeedLabelWithCounter(seedLabel, nextMelodyCounter, "melody", false);
         nextMelodyCounter = seedInfo.counter;
         melody = generateMelodyLine({
@@ -6869,8 +7359,8 @@
       if (drumAutoRegenerate) {
         const seedInfo = buildSeedLabelWithCounter(seedLabel, nextDrumCounter, "drum", false);
         nextDrumCounter = seedInfo.counter;
-        const drumMain = drumGenreMain?.value || genreMain?.value || "";
-        const drumSub = drumGenreSub?.value || genreSub?.value || "base";
+        const drumMain = blendMains || (drumGenreMain?.value || genreMain?.value || "");
+        const drumSub = blendSubs || (drumGenreSub?.value || genreSub?.value || "base");
         drums = generateDrumPattern({
           bars,
           seed: seedInfo.seed,
@@ -7207,6 +7697,46 @@
       seedDrivesSettings = false;
     });
 
+    if (blendToggle) {
+      blendToggle.addEventListener("click", () => {
+        const enable = !document.body.classList.contains("blend-mode");
+        document.body.classList.toggle("blend-mode", enable);
+        if (enable) {
+          const seedBlend = getSeedGenreBlend(seedInput.value.trim());
+          const defaults = seedBlend && seedBlend.subs.length
+            ? seedBlend.subs.map(subKey => `${genreLookup.subToMain[subKey]}:${subKey}`)
+            : [`${genreMain?.value || "core"}:${genreSub?.value || "base"}`];
+          syncBlendSelects(defaults);
+          updateManualBlendFromSelects(true);
+        } else {
+          const first = manualBlendGenres[0];
+          if (first && genreMain && genreSub) {
+            const [mainKey, subKey] = first.split(":");
+            if (mainKey && subKey) {
+              genreMain.value = mainKey;
+              populateSubgenres(mainKey, subKey);
+            }
+          }
+          manualBlendGenres = [];
+          manualBlendEnabled = false;
+          syncBlendSelects([]);
+        }
+        render();
+      });
+    }
+
+    if (blendAdd) {
+      blendAdd.addEventListener("click", () => {
+        if (!blendSelects) return;
+        const current = blendSelects.querySelectorAll("select").length;
+        if (current >= 4) return;
+        const fallback = `${genreMain?.value || "core"}:${genreSub?.value || "base"}`;
+        const select = buildBlendSelect(fallback);
+        blendSelects.appendChild(select);
+        updateManualBlendFromSelects();
+      });
+    }
+
     if (bassGenerate) {
       bassGenerate.addEventListener("click", () => {
         if (selectedBassIndices.size) {
@@ -7263,7 +7793,7 @@
       "- Select: Drag a box over clips, then hit ¢hords/฿ass/Melody/Drums to replace only the selection.",
       "- Loop/Regen (per track): Loop that track or regenerate it at the end.",
       "- Mute icons: Toggle chord/bass/melody/drums audio + MIDI.",
-      "- $eed: Paste any text to make a repeatable progression, or share creative $eeds with others.",
+      "- $eed: Paste any text to make a repeatable progression; include multiple genre words to blend styles.",
       "",
       "BUTTONS",
       "- ¢hords: Generate a new progression.",
@@ -7493,31 +8023,28 @@
       } else if (event.key === "Escape" && routeModal && routeModal.classList.contains("active")) {
         event.preventDefault();
         closeRouteModal();
+      } else if (event.target === seedInput) {
+        return;
       } else if ((event.key === "c" || event.key === "C") && !isCtrl) {
-        if (event.target === seedInput) return;
         event.preventDefault();
         applyRandomSeedIfNeeded();
         render();
         return;
       } else if ((event.key === "r" || event.key === "R") && !isCtrl) {
-        if (event.target === seedInput) return;
         event.preventDefault();
         randomSeed.click();
         return;
       } else if ((event.key === "b" || event.key === "B") && !isCtrl) {
-        if (event.target === seedInput) return;
         if (!bassGenerate) return;
         event.preventDefault();
         bassGenerate.click();
         return;
       } else if ((event.key === "m" || event.key === "M") && !isCtrl) {
-        if (event.target === seedInput) return;
         if (!melodyGenerate) return;
         event.preventDefault();
         melodyGenerate.click();
         return;
       } else if ((event.key === "d" || event.key === "D") && !isCtrl) {
-        if (event.target === seedInput) return;
         if (!drumGenerate) return;
         event.preventDefault();
         drumGenerate.click();
