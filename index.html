@@ -6871,9 +6871,10 @@
         events.forEach(event => {
           const eventOnId = setTimeout(() => {
             if (chordMuted || (!isPlaying && !allowWhenStopped)) return;
-            event.notes.forEach(note => sendChordNoteOn(note, velocity));
+            const channel = getChordChannel();
+            event.notes.forEach(note => sendChordNoteOn(note, velocity, channel));
             const offId = setTimeout(() => {
-              event.notes.forEach(note => sendChordNoteOff(note));
+              event.notes.forEach(note => sendChordNoteOffOnChannel(note, channel));
             }, Math.max(0, event.duration * beatSec * 1000));
             playTimers.push(offId);
           }, Math.max(0, event.offset * beatSec * 1000));
@@ -7482,6 +7483,9 @@
             if (midiEnabled) {
               tempoInput.disabled = true;
               if (tempoNumber) tempoNumber.disabled = true;
+              if (tempoNumber && document.activeElement !== tempoNumber) {
+                tempoNumber.value = externalBpm.toFixed(1);
+              }
               if (tempoReadout) {
                 tempoReadout.textContent = `EXT ${externalBpm.toFixed(1)} BPM`;
               }
@@ -7556,9 +7560,9 @@
       refreshMidiRouteOptions();
     }
 
-    function sendChordNoteOn(note, velocity = 96) {
+    function sendChordNoteOn(note, velocity = 96, channelOverride = null) {
       if (!midiEnabled || !midiOutput) return;
-      const channel = getChordChannel();
+      const channel = channelOverride !== null ? channelOverride : getChordChannel();
       const id = chordNoteCounter + 1;
       chordNoteCounter = id;
       midiOutput.send([0x90 + channel, note, velocity]);
@@ -7573,6 +7577,12 @@
       const resolved = entry && entry.channel !== undefined ? entry.channel : getChordChannel();
       midiOutput.send([0x80 + resolved, note, 0]);
       activeChordNotes.delete(note);
+    }
+
+    function sendChordNoteOffOnChannel(note, channel) {
+      if (!midiEnabled || !midiOutput) return;
+      const resolved = channel ?? getChordChannel();
+      midiOutput.send([0x80 + resolved, note, 0]);
     }
 
     function sendBassNoteOn(note, velocity = 96) {
@@ -7675,6 +7685,16 @@
       activeBassNotes.clear();
       activeMelodyNotes.clear();
       activeDrumNotes.clear();
+    }
+
+    function sendGlobalAllNotesOff() {
+      if (!midiEnabled || !midiOutput) return;
+      for (let channel = 0; channel < 16; channel += 1) {
+        midiOutput.send([0xB0 + channel, 64, 0]);  // sustain off
+        midiOutput.send([0xB0 + channel, 123, 0]); // all notes off
+        midiOutput.send([0xB0 + channel, 120, 0]); // all sound off
+        midiOutput.send([0xB0 + channel, 121, 0]); // reset all controllers
+      }
     }
 
 
@@ -8617,6 +8637,7 @@
       document.body.classList.remove("playing");
       if (!isPlaying) {
         sendAllNotesOff();
+        sendGlobalAllNotesOff();
         return;
       }
       isPlaying = false;
@@ -8635,6 +8656,7 @@
       });
       activeOscillators.clear();
       sendAllNotesOff();
+      sendGlobalAllNotesOff();
     }
 
     function restoreMasterGain() {
