@@ -60,8 +60,10 @@ HOTKEYS
 - Space: Play/Stop (global).
 - Left/Right: Step through chords.
 - C: ¢hords (new progression).
+- R: Random chord settings.
 - B: Generate bass.
 - M: Generate melody.
 - D: Generate drums.
+- Shift: Reset to defaults.
 - Click clips: Jump to that point and audition the chord/bass/melody/drum.
 - $ong button: Toggle $ong mode (auto-bass + auto-melody + auto-drums).
