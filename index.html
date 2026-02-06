@@ -855,6 +855,10 @@
       display: none;
     }
 
+    .hidden {
+      display: none;
+    }
+
     .form-block {
       position: absolute;
       top: 2px;
@@ -1247,6 +1251,17 @@
                 <option value="even">Even only</option>
                 <option value="mixed">Even + triplet</option>
               </select>
+            </label>
+            <label>
+              Backing
+              <select id="backingStyle"></select>
+            </label>
+            <label class="backing-comp hidden" id="backingCompWrap">
+              <div class="label-row">
+                <span>Backing complexity</span>
+                <span class="readout inline" id="backingCompReadout">50%</span>
+              </div>
+              <input id="backingComp" type="range" min="0" max="100" value="50" />
             </label>
             <label class="song-only">
               ch
@@ -4153,6 +4168,8 @@
           modulation: modulationInput?.value || "",
           subdivision: subdivisionInput?.value || "",
           subdivisionDensity: subdivisionDensityInput?.value || "",
+          backingStyle: backingStyleInput?.value || "blocks",
+          backingComp: backingCompInput?.value || "",
           formEnabled,
           formComplexity: formComplexityInput?.value || "",
           tempo: tempoInput?.value || "",
@@ -4313,8 +4330,12 @@
       if (modulationInput) modulationInput.value = snapshot.controls.modulation;
       if (subdivisionInput) subdivisionInput.value = snapshot.controls.subdivision;
       if (subdivisionDensityInput) subdivisionDensityInput.value = snapshot.controls.subdivisionDensity;
+      if (backingStyleInput) backingStyleInput.value = snapshot.controls.backingStyle || "blocks";
+      if (backingCompInput) backingCompInput.value = snapshot.controls.backingComp || "50";
       if (formComplexityInput) formComplexityInput.value = snapshot.controls.formComplexity;
       setFormEnabledState(snapshot.controls.formEnabled);
+      resolveBackingSettings();
+      updateBackingCompVisibility(backingStyleInput?.value);
 
       if (tempoInput) tempoInput.value = snapshot.controls.tempo;
       if (chordVolumeInput) chordVolumeInput.value = snapshot.controls.chordVolume;
@@ -5346,15 +5367,21 @@
       events.push({ tick: 0, order: -1, bytes: [0xc0 + melodyChannel, 0x50] });
 
       let tickCursor = 0;
+      const beatSec = 60 / bpm;
       chords.forEach(chord => {
-        chord.notes.forEach(note => {
-          events.push({ tick: tickCursor, order: 1, bytes: [0x90 + chordChannel, note, 92] });
+        const chordStart = tickCursor;
+        const backingEvents = buildChordBackingEvents(chord, beatSec);
+        backingEvents.forEach(event => {
+          const startTick = chordStart + Math.max(0, Math.round(event.offset * ticksPerBeat));
+          const durationTicks = Math.max(1, Math.round(event.duration * ticksPerBeat));
+          event.notes.forEach(note => {
+            events.push({ tick: startTick, order: 1, bytes: [0x90 + chordChannel, note, 92] });
+          });
+          event.notes.forEach(note => {
+            events.push({ tick: startTick + durationTicks, order: 0, bytes: [0x80 + chordChannel, note, 0] });
+          });
         });
-        const durationTicks = Math.max(1, Math.round(chord.duration * ticksPerBeat));
-        chord.notes.forEach(note => {
-          events.push({ tick: tickCursor + durationTicks, order: 0, bytes: [0x80 + chordChannel, note, 0] });
-        });
-        tickCursor += durationTicks;
+        tickCursor += Math.max(1, Math.round(chord.duration * ticksPerBeat));
       });
 
       bassNotes.forEach(note => {
@@ -5569,6 +5596,7 @@
 
     function rebuildMidi() {
       if (!currentChords.length) return;
+      resolveBackingSettings();
       currentMidi = buildMidi(currentChords, currentBpm, currentBass, currentMelody, currentDrums);
       if (midiBlobUrl) {
         URL.revokeObjectURL(midiBlobUrl);
@@ -5745,6 +5773,8 @@
       if (modulationInput) modulationInput.value = "15";
       if (subdivisionDensityInput) subdivisionDensityInput.value = "20";
       if (subdivisionInput) subdivisionInput.value = "even";
+      if (backingStyleInput) backingStyleInput.value = "blocks";
+      if (backingCompInput) backingCompInput.value = "50";
       if (chordChannelSelect) chordChannelSelect.value = "1";
       if (bassChannelSelect) bassChannelSelect.value = "2";
       if (bassDensityInput) bassDensityInput.value = "55";
@@ -5811,6 +5841,8 @@
       if (songMode) {
         setSongMode(false);
       }
+      resolveBackingSettings();
+      updateBackingCompVisibility(backingStyleInput?.value);
       updateReadouts();
       render();
     }
@@ -5836,6 +5868,10 @@
     const modulationInput = document.getElementById("modulation");
     const subdivisionDensityInput = document.getElementById("subdivisionDensity");
     const subdivisionInput = document.getElementById("subdivision");
+    const backingStyleInput = document.getElementById("backingStyle");
+    const backingCompWrap = document.getElementById("backingCompWrap");
+    const backingCompInput = document.getElementById("backingComp");
+    const backingCompReadout = document.getElementById("backingCompReadout");
     const themeSlider = document.getElementById("themeSlider");
     const midiToggle = document.getElementById("midiToggle");
     const midiRoute = document.getElementById("midiRoute");
@@ -6165,6 +6201,47 @@
       return subKey;
     }
 
+    function populateBackingStyles() {
+      if (!backingStyleInput) return;
+      const current = backingStyleInput.value || "blocks";
+      backingStyleInput.innerHTML = "";
+      const baseOptions = [
+        { value: "auto", label: "Auto (genre)" },
+        { value: "blocks", label: "Blocks (sustain)" },
+        { value: "rake", label: "Raked / Strum" },
+        { value: "arp-up", label: "Arp Up" },
+        { value: "arp-down", label: "Arp Down" },
+        { value: "arp-updown", label: "Arp Up/Down" },
+        { value: "arp-alt", label: "Arp Alternate" },
+        { value: "chop", label: "Chopped" },
+        { value: "stabs", label: "Short Stabs" },
+        { value: "genre-comp", label: "Genre Comp (current)" }
+      ];
+      baseOptions.forEach(optionDef => {
+        const option = document.createElement("option");
+        option.value = optionDef.value;
+        option.textContent = optionDef.label;
+        backingStyleInput.appendChild(option);
+      });
+
+      const group = document.createElement("optgroup");
+      group.label = "Comp Styles";
+      Object.keys(genreCatalog).forEach(mainKey => {
+        const sub = genreCatalog[mainKey].sub;
+        Object.keys(sub).forEach(subKey => {
+          const option = document.createElement("option");
+          option.value = `comp:${mainKey}:${subKey}`;
+          option.textContent = `Comp: ${sub[subKey]} (${genreCatalog[mainKey].label})`;
+          group.appendChild(option);
+        });
+      });
+      backingStyleInput.appendChild(group);
+
+      const hasCurrent = Array.from(backingStyleInput.options).some(option => option.value === current);
+      backingStyleInput.value = hasCurrent ? current : "blocks";
+      updateBackingCompVisibility(backingStyleInput.value);
+    }
+
     function getActiveBlend() {
       if (manualBlendEnabled && manualBlendGenres.length) {
         return {
@@ -6179,6 +6256,311 @@
         };
       }
       return null;
+    }
+
+    function getAutoBackingStyle(mainKey, subKey) {
+      const key = (subKey || "").toLowerCase();
+      const main = (mainKey || "").toLowerCase();
+      if (["reggae", "ska", "dancehall", "calypso"].includes(key)) return "chop";
+      if (["funk", "neo-soul", "rnb", "soul", "gospel"].includes(key)) return "chop";
+      if (["bossa", "latin-jazz", "samba"].includes(key)) return "arp-up";
+      if (["baroque", "classical", "romantic", "impressionist", "modern-classical", "neoclassical", "minimalism"].includes(key)) {
+        return "arp-updown";
+      }
+      if (["bebop", "hard-bop", "cool-jazz", "modal-jazz", "swing", "jazz", "fusion", "gypsy-jazz"].includes(key)) {
+        return "genre-comp";
+      }
+      if (["blues", "chicago-blues", "delta-blues", "minor-blues"].includes(key)) return "genre-comp";
+      if (["rock", "metal", "punk", "prog", "post-rock", "indie"].includes(key)) return "stabs";
+      if (["pop", "synth-pop", "indie-pop", "dream-pop"].includes(key)) return "stabs";
+      if (["hip-hop", "boom-bap", "trap", "lofi-hiphop"].includes(key)) return "stabs";
+      if (["edm", "house", "downtempo", "trance", "dubstep"].includes(key)) return "chop";
+      if (main === "jazz") return "genre-comp";
+      if (main === "core" || key === "base") return "genre-comp";
+      if (main === "classical") return "arp-updown";
+      if (main === "rock" || main === "pop" || main === "hiphop") return "stabs";
+      return "blocks";
+    }
+
+    function getGenreCompPattern(mainKey, subKey) {
+      const key = (subKey || "").toLowerCase();
+      const main = (mainKey || "").toLowerCase();
+      const patterns = {
+        base: { steps: [0, 2], duration: 0.4 },
+        ambient: { steps: [0], duration: 1.6 },
+        lofi: { steps: [0, 2.5], duration: 0.6 },
+        jazz: { steps: [0, 1.5, 2.5, 3.5], duration: 0.35 },
+        bebop: { steps: [0, 1.5, 2.5, 3.75], duration: 0.28 },
+        "hard-bop": { steps: [0, 1.5, 2.5, 3.25], duration: 0.3 },
+        "cool-jazz": { steps: [0, 2, 3.5], duration: 0.4 },
+        "modal-jazz": { steps: [0, 1.5, 2.5, 3.5], duration: 0.34 },
+        swing: { steps: [0, 1.5, 2.5, 3.5], duration: 0.34 },
+        fusion: { steps: [0, 1.5, 2.5, 3], duration: 0.3 },
+        "gypsy-jazz": { steps: [0, 1.5, 2.5, 3.5], duration: 0.22 },
+        bossa: { steps: [0, 1.5, 2, 3.5], duration: 0.28 },
+        "latin-jazz": { steps: [0, 1.5, 2, 3.5], duration: 0.26 },
+        samba: { steps: [0, 1.5, 2.5, 3.5], duration: 0.22 },
+        reggae: { steps: [0.5, 1.5, 2.5, 3.5], duration: 0.18 },
+        ska: { steps: [0.5, 1.5, 2.5, 3.5], duration: 0.18 },
+        dancehall: { steps: [0.5, 1.5, 2.5, 3.5], duration: 0.2 },
+        calypso: { steps: [0, 1.5, 2.5, 3.5], duration: 0.22 },
+        funk: { steps: [0, 1.5, 2.75, 3.5], duration: 0.24 },
+        "neo-soul": { steps: [0.25, 1.75, 2.75, 3.5], duration: 0.28 },
+        rnb: { steps: [0, 1.5, 2.5, 3.5], duration: 0.3 },
+        soul: { steps: [0, 1.5, 2.5, 3.5], duration: 0.3 },
+        gospel: { steps: [0, 1.5, 2.5, 3.5], duration: 0.32 },
+        blues: { steps: [0, 2, 3.5], duration: 0.32 },
+        "chicago-blues": { steps: [0, 2, 3.5], duration: 0.32 },
+        "delta-blues": { steps: [0, 2, 3.5], duration: 0.32 },
+        "minor-blues": { steps: [0, 2, 3.5], duration: 0.32 },
+        rock: { steps: [0, 2], duration: 0.45 },
+        metal: { steps: [0, 2], duration: 0.42 },
+        punk: { steps: [0, 1, 2, 3], duration: 0.26 },
+        prog: { steps: [0, 1.5, 2.5, 3], duration: 0.28 },
+        "post-rock": { steps: [0], duration: 0.8 },
+        indie: { steps: [0, 2], duration: 0.45 },
+        pop: { steps: [0, 2], duration: 0.35 },
+        "synth-pop": { steps: [0.5, 1.5, 2.5, 3.5], duration: 0.22 },
+        "indie-pop": { steps: [0, 2], duration: 0.35 },
+        "dream-pop": { steps: [0], duration: 0.8 },
+        folk: { steps: [0, 2], duration: 0.42 },
+        americana: { steps: [0, 2], duration: 0.42 },
+        country: { steps: [0, 2], duration: 0.4 },
+        "hip-hop": { steps: [0, 2], duration: 0.4 },
+        "boom-bap": { steps: [0, 2], duration: 0.4 },
+        trap: { steps: [0, 2.5], duration: 0.32 },
+        "lofi-hiphop": { steps: [0, 2], duration: 0.55 },
+        edm: { steps: [0.5, 1.5, 2.5, 3.5], duration: 0.2 },
+        house: { steps: [0.5, 1.5, 2.5, 3.5], duration: 0.2 },
+        downtempo: { steps: [0, 2, 3.5], duration: 0.42 },
+        trance: { steps: [0.5, 1.5, 2.5, 3.5], duration: 0.22 },
+        dubstep: { steps: [0, 2.5], duration: 0.24 },
+        baroque: { steps: [0, 1, 2, 3], duration: 0.3 },
+        classical: { steps: [0, 1, 2, 3], duration: 0.32 },
+        romantic: { steps: [0, 1, 2, 3], duration: 0.34 },
+        impressionist: { steps: [0, 1.5, 2.5, 3.5], duration: 0.35 },
+        "modern-classical": { steps: [0, 1, 2.5, 3.5], duration: 0.3 },
+        neoclassical: { steps: [0, 1, 2, 3], duration: 0.3 },
+        minimalism: { steps: [0, 2], duration: 0.5 }
+      };
+      if (patterns[key]) return patterns[key];
+      if (patterns[main]) return patterns[main];
+      return { steps: [0, 2], duration: 0.35 };
+    }
+
+    function resolveBackingSettings() {
+      const selection = backingStyleInput?.value || "blocks";
+      if (selection.startsWith("comp:")) {
+        const parts = selection.split(":");
+        const mainKey = parts[1] || genreMain?.value || "";
+        const subKey = parts[2] || genreSub?.value || "";
+        currentBackingGenre = { main: mainKey, sub: subKey };
+        currentBackingStyle = "genre-comp";
+        return;
+      }
+      const blend = getActiveBlend();
+      const blendSubs = blend && blend.subs && blend.subs.length ? blend.subs : null;
+      const blendPick = blendSubs ? blendSubs[0] : null;
+      const mainKey = blendPick ? genreLookup.subToMain[blendPick] || genreMain?.value || "" : (genreMain?.value || "");
+      const subKey = blendPick || (genreSub?.value || "");
+      currentBackingGenre = { main: mainKey, sub: subKey };
+      if (selection === "auto") {
+        currentBackingStyle = getAutoBackingStyle(mainKey, subKey);
+      } else {
+        currentBackingStyle = selection;
+      }
+    }
+
+    function isCompBackingSelection(value) {
+      if (!value) return false;
+      return value === "genre-comp" || value.startsWith("comp:");
+    }
+
+    function getBackingGenreFromSelection(selection) {
+      const value = selection || backingStyleInput?.value || "";
+      if (value.startsWith("comp:")) {
+        const parts = value.split(":");
+        return {
+          main: parts[1] || genreMain?.value || "",
+          sub: parts[2] || genreSub?.value || ""
+        };
+      }
+      const blend = getActiveBlend();
+      const blendSubs = blend && blend.subs && blend.subs.length ? blend.subs : null;
+      const blendPick = blendSubs ? blendSubs[0] : null;
+      const mainKey = blendPick ? genreLookup.subToMain[blendPick] || genreMain?.value || "" : (genreMain?.value || "");
+      const subKey = blendPick || (genreSub?.value || "");
+      return { main: mainKey, sub: subKey };
+    }
+
+    function updateBackingCompVisibility(value) {
+      if (!backingCompWrap) return;
+      const selection = value || backingStyleInput?.value || "";
+      let show = false;
+      if (selection === "auto") {
+        show = true;
+      } else if (selection.startsWith("arp")) {
+        show = true;
+      } else if (isCompBackingSelection(selection)) {
+        show = true;
+      }
+      backingCompWrap.classList.toggle("hidden", !show);
+    }
+
+    function getBackingComplexity() {
+      if (!backingCompInput) return 50;
+      const value = parseInt(backingCompInput.value, 10);
+      if (Number.isNaN(value)) return 50;
+      return Math.max(0, Math.min(100, value));
+    }
+
+    function buildChordBackingEvents(chord, beatSec, styleOverride = null, genreOverride = null) {
+      let style = styleOverride || currentBackingStyle || "blocks";
+      const genre = genreOverride || currentBackingGenre;
+      if (style === "auto") {
+        style = getAutoBackingStyle(genre?.main, genre?.sub);
+      }
+      const duration = Math.max(0.05, chord.duration);
+      const notes = (chord.notes || []).slice();
+      if (!notes.length) return [];
+      const asc = notes.slice().sort((a, b) => a - b);
+      const desc = asc.slice().reverse();
+      const events = [];
+      const pushEvent = (offset, dur, noteList) => {
+        if (!noteList || !noteList.length) return;
+        if (offset >= duration) return;
+        const end = Math.min(duration, offset + dur);
+        const safeDur = Math.max(0.05, end - offset);
+        events.push({ offset, duration: safeDur, notes: noteList });
+      };
+      const addPatternSteps = (steps, hitDur) => {
+        const bars = Math.max(1, Math.ceil(duration / 4));
+        for (let bar = 0; bar < bars; bar++) {
+          const barStart = bar * 4;
+          steps.forEach(step => {
+            const start = barStart + step;
+            if (start < duration) {
+              pushEvent(start, hitDur, notes);
+            }
+          });
+        }
+      };
+
+      if (style === "blocks") {
+        pushEvent(0, duration, notes);
+        return events;
+      }
+
+      if (style === "rake") {
+        const strumSec = 0.03;
+        const offsetBeat = Math.min(0.15, strumSec / Math.max(beatSec, 0.001));
+        asc.forEach((note, index) => {
+          const offset = index * offsetBeat;
+          pushEvent(offset, Math.max(duration - offset, offsetBeat * 1.5), [note]);
+        });
+        return events;
+      }
+
+      if (style.startsWith("arp")) {
+        const baseStep = duration >= 2 ? 0.5 : 0.25;
+        const complexity = getBackingComplexity() / 100;
+        const stepMin = baseStep * 0.5;
+        const stepMax = baseStep * 1.4;
+        let step = baseStep * (1 - 0.45 * complexity);
+        step = Math.max(stepMin, Math.min(stepMax, step));
+        const gate = Math.max(0.45, Math.min(0.95, 0.95 - complexity * 0.35));
+        let sequence = asc;
+        if (style === "arp-down") sequence = desc;
+        if (style === "arp-updown") {
+          sequence = asc.concat(asc.slice(1, -1).reverse());
+        }
+        if (style === "arp-alt") {
+          const alt = [];
+          let left = 0;
+          let right = asc.length - 1;
+          while (left <= right) {
+            alt.push(asc[left]);
+            if (right !== left) alt.push(asc[right]);
+            left += 1;
+            right -= 1;
+          }
+          sequence = alt;
+        }
+        let index = 0;
+        for (let t = 0; t < duration - 1e-4; t += step) {
+          const note = sequence[index % sequence.length];
+          pushEvent(t, Math.min(step * gate, duration - t), [note]);
+          index += 1;
+        }
+        return events;
+      }
+
+      if (style === "chop") {
+        const hitDur = Math.min(0.25, duration * 0.6);
+        const steps = [0.5, 1.5, 2.5, 3.5];
+        addPatternSteps(steps, hitDur);
+        if (!events.length) pushEvent(0, Math.min(duration, 0.3), notes);
+        return events;
+      }
+
+      if (style === "stabs") {
+        const hitDur = Math.min(0.35, duration * 0.7);
+        const steps = [0, 1, 2, 3];
+        addPatternSteps(steps, hitDur);
+        if (!events.length) pushEvent(0, Math.min(duration, 0.35), notes);
+        return events;
+      }
+
+      if (style === "genre-comp") {
+        const pattern = getGenreCompPattern(genre?.main, genre?.sub);
+        const complexity = getBackingComplexity() / 100;
+        let steps = pattern.steps.slice();
+        if (complexity > 0.35) {
+          const extras = steps.map(step => step + 0.25).filter(step => step < 4);
+          steps = Array.from(new Set(steps.concat(extras))).sort((a, b) => a - b);
+        }
+        if (complexity > 0.7) {
+          const extras = steps.map(step => step + 0.5).filter(step => step < 4);
+          steps = Array.from(new Set(steps.concat(extras))).sort((a, b) => a - b);
+        }
+        const durScale = Math.max(0.7, 1 - complexity * 0.25);
+        const hitDur = Math.min(pattern.duration * durScale, duration * 0.8);
+        addPatternSteps(steps, hitDur);
+        if (!events.length) pushEvent(0, Math.min(duration, 0.4), notes);
+        return events;
+      }
+
+      pushEvent(0, duration, notes);
+      return events;
+    }
+
+    function playChordBacking(chord, startTime, beatSec) {
+      const events = buildChordBackingEvents(chord, beatSec);
+      events.forEach(event => {
+        playChordAtTime(event.notes, startTime + event.offset * beatSec, event.duration * beatSec);
+      });
+    }
+
+    function scheduleMidiChordBacking(chord, startMs, beatSec, allowWhenStopped = false) {
+      if (!midiOutput || chordMuted) return;
+      const events = buildChordBackingEvents(chord, beatSec);
+      const onId = setTimeout(() => {
+        if (chordMuted || (!isPlaying && !allowWhenStopped)) return;
+        sendChordPanic();
+        const velocity = getMidiVelocity();
+        events.forEach(event => {
+          const eventOnId = setTimeout(() => {
+            if (chordMuted || (!isPlaying && !allowWhenStopped)) return;
+            event.notes.forEach(note => sendChordNoteOn(note, velocity));
+            const offId = setTimeout(() => {
+              event.notes.forEach(note => sendChordNoteOff(note));
+            }, Math.max(0, event.duration * beatSec * 1000));
+            playTimers.push(offId);
+          }, Math.max(0, event.offset * beatSec * 1000));
+          playTimers.push(eventOnId);
+        });
+      }, Math.max(0, startMs));
+      playTimers.push(onId);
     }
 
     function buildBlendSelect(selectedValue) {
@@ -6550,6 +6932,8 @@
     let drumAutoRegenerate = false;
     let drumSeedCounter = 0;
     let currentSeed = createRegenSeedLabel();
+    let currentBackingStyle = "blocks";
+    let currentBackingGenre = { main: "", sub: "" };
     let isPlaying = false;
     let playTimers = [];
     let audioContext = null;
@@ -6622,6 +7006,7 @@
     const HISTORY_LIMIT = 20;
     syncBlendSelects([]);
     setFormEnabledState(false);
+    populateBackingStyles();
 
     function getMidiVelocity() {
       if (!midiVelocity) return 96;
@@ -6964,10 +7349,10 @@
     }
 
 
-    function scheduleMidiChord(notes, startMs, durationMs) {
+    function scheduleMidiChord(notes, startMs, durationMs, allowWhenStopped = false) {
       if (!midiOutput || chordMuted) return;
       const onId = setTimeout(() => {
-        if (chordMuted || !isPlaying) return;
+        if (chordMuted || (!isPlaying && !allowWhenStopped)) return;
         sendChordPanic();
         const velocity = getMidiVelocity();
         const noteIds = new Map();
@@ -7601,16 +7986,10 @@
       const beatSec = 60 / bpm;
       const chord = currentChords[index];
       if (!chordMuted) {
-        playChordAtTime(chord.notes, audioContext.currentTime, chord.duration * beatSec);
+        playChordBacking(chord, audioContext.currentTime, beatSec);
       }
       if (midiEnabled && !chordMuted) {
-        sendChordPanic();
-        const velocity = getMidiVelocity();
-        chord.notes.forEach(note => sendChordNoteOn(note, velocity));
-        const offId = setTimeout(() => {
-          chord.notes.forEach(note => sendChordNoteOff(note));
-        }, chord.duration * beatSec * 1000);
-        playTimers.push(offId);
+        scheduleMidiChordBacking(chord, 0, beatSec, true);
       }
     }
 
@@ -7938,6 +8317,7 @@
       if (!currentChords.length) return;
       ensureAudio();
       ensureMidi();
+      resolveBackingSettings();
       isPlaying = true;
       playButton.textContent = "Stop";
       document.body.classList.add("playing");
@@ -7964,9 +8344,14 @@
       for (let i = safeStart; i < currentChords.length; i++) {
         const chord = currentChords[i];
         const startTime = audioContext.currentTime + cursor * beatSec;
-        playChordAtTime(chord.notes, startTime, chord.duration * beatSec);
+        playChordBacking(chord, startTime, beatSec);
         if (midiEnabled) {
-          scheduleMidiChord(chord.notes, (baseMs + cursor * beatSec * 1000) - performance.now(), chord.duration * beatSec * 1000);
+          scheduleMidiChordBacking(
+            chord,
+            (baseMs + cursor * beatSec * 1000) - performance.now(),
+            beatSec,
+            false
+          );
         }
         const timerId = setTimeout(() => {
           setActiveChord(i);
@@ -8092,6 +8477,9 @@
       colorReadout.textContent = `${colorInput.value}%`;
       modulationReadout.textContent = `${modulationInput.value}%`;
       subdivisionDensityReadout.textContent = `${subdivisionDensityInput.value}%`;
+      if (backingCompReadout && backingCompInput) {
+        backingCompReadout.textContent = `${backingCompInput.value}%`;
+      }
       if (bassDensityReadout && bassDensityInput) {
         bassDensityReadout.textContent = `${bassDensityInput.value}%`;
       }
@@ -8171,6 +8559,8 @@
         modulation: modulationInput?.value || "",
         subdivision: subdivisionInput?.value || "",
         subdivisionDensity: subdivisionDensityInput?.value || "",
+        backingStyle: backingStyleInput?.value || "blocks",
+        backingComp: backingCompInput?.value || "",
         tempo: tempoInput?.value || "",
         genreMain: genreMain?.value || "",
         genreSub: genreSub?.value || "",
@@ -8773,6 +9163,8 @@
       "- Modulation amount (%): Likelihood of key shifts.",
       "- Subdivision density (%): How often bars subdivide.",
       "- Subdivision mode: Even only or even + triplet feel.",
+      "- Backing: Blocks, raked/strum, arps, chopped, stabs, or genre comp (auto or choose a specific genre comp style).",
+      "- Backing complexity (%): Controls how busy the comp pattern is and shapes arp density.",
       "- Form lane: Section labels appear under the bar ruler.",
       "- Bass controls ($ong): Genre/subgenre, density, movement, color, fills, subdivision, style, register, and channel.",
       "- Melody controls ($ong): Genre/subgenre, density, movement, color, fills, subdivision, style, register, and channel.",
@@ -9050,15 +9442,10 @@
         const bpm = getPlaybackBpm();
         const beatSec = 60 / bpm;
         if (!chordMuted) {
-          playChordAtTime(currentChords[nextIndex].notes, audioContext.currentTime, currentChords[nextIndex].duration * beatSec);
+          playChordBacking(currentChords[nextIndex], audioContext.currentTime, beatSec);
         }
         if (midiEnabled && !chordMuted) {
-          const velocity = getMidiVelocity();
-          currentChords[nextIndex].notes.forEach(note => sendChordNoteOn(note, velocity));
-          const offId = setTimeout(() => {
-            currentChords[nextIndex].notes.forEach(note => sendChordNoteOff(note));
-          }, currentChords[nextIndex].duration * beatSec * 1000);
-          playTimers.push(offId);
+          scheduleMidiChordBacking(currentChords[nextIndex], 0, beatSec, true);
         }
       } else if (event.key === "ArrowLeft") {
         if (tag === "input" || tag === "textarea" || tag === "select") return;
@@ -9072,15 +9459,10 @@
         const bpm = getPlaybackBpm();
         const beatSec = 60 / bpm;
         if (!chordMuted) {
-          playChordAtTime(currentChords[prevIndex].notes, audioContext.currentTime, currentChords[prevIndex].duration * beatSec);
+          playChordBacking(currentChords[prevIndex], audioContext.currentTime, beatSec);
         }
         if (midiEnabled && !chordMuted) {
-          const velocity = getMidiVelocity();
-          currentChords[prevIndex].notes.forEach(note => sendChordNoteOn(note, velocity));
-          const offId = setTimeout(() => {
-            currentChords[prevIndex].notes.forEach(note => sendChordNoteOff(note));
-          }, currentChords[prevIndex].duration * beatSec * 1000);
-          playTimers.push(offId);
+          scheduleMidiChordBacking(currentChords[prevIndex], 0, beatSec, true);
         }
       }
     });
@@ -9446,6 +9828,20 @@
       subdivisionInput.addEventListener("change", () => {
       });
     }
+    if (backingStyleInput) {
+      backingStyleInput.addEventListener("change", () => {
+        resolveBackingSettings();
+        updateBackingCompVisibility(backingStyleInput.value);
+        rebuildMidi();
+        pushHistory();
+      });
+    }
+    if (backingCompInput) {
+      backingCompInput.addEventListener("input", () => {
+        updateReadouts();
+        rebuildMidi();
+      });
+    }
     if (keySelect) {
       keySelect.addEventListener("change", () => {
       });
@@ -9454,9 +9850,11 @@
     if (genreMain && genreSub) {
       genreMain.addEventListener("change", () => {
         populateSubgenres(genreMain.value);
+        populateBackingStyles();
         render();
       });
       genreSub.addEventListener("change", () => {
+        populateBackingStyles();
         render();
       });
     }
