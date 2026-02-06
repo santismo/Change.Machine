@@ -347,11 +347,18 @@
       box-shadow: 0 0 18px rgba(var(--glow-rgb), 0.35);
     }
 
-    .song-toggle {
+    .song-controls {
       position: fixed;
       left: 22px;
       bottom: 22px;
       z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .song-toggle {
+      position: static;
       border: 1px solid rgba(var(--border-rgb), 0.5);
       background: var(--panel);
       color: var(--text);
@@ -364,6 +371,24 @@
 
     .song-toggle:hover {
       box-shadow: 0 0 18px rgba(var(--glow-rgb), 0.35);
+    }
+
+    .history-button {
+      border: 1px solid rgba(var(--border-rgb), 0.5);
+      background: var(--panel);
+      color: var(--text);
+      padding: 10px 12px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      box-shadow: 0 0 12px rgba(var(--glow-rgb), 0.2);
+      min-width: 40px;
+    }
+
+    .history-button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
     }
 
     .theme-control {
@@ -553,6 +578,7 @@
       color: var(--muted);
       min-width: 0;
     }
+
 
     .label-row {
       display: flex;
@@ -1192,7 +1218,7 @@
                 <span>Harmonic density</span>
                 <span class="readout inline" id="densityReadout">50%</span>
               </div>
-              <input id="density" type="range" min="0" max="100" value="50" />
+              <input id="density" type="range" min="0" max="100" value="15" />
             </label>
             <label>
               <div class="label-row">
@@ -1211,9 +1237,9 @@
             <label>
               <div class="label-row">
                 <span>Subdivision density</span>
-                <span class="readout inline" id="subdivisionDensityReadout">50%</span>
+                <span class="readout inline" id="subdivisionDensityReadout">20%</span>
               </div>
-              <input id="subdivisionDensity" type="range" min="0" max="100" value="50" />
+              <input id="subdivisionDensity" type="range" min="0" max="100" value="20" />
             </label>
             <label>
               Subdivision mode
@@ -1226,14 +1252,8 @@
               ch
               <select id="chordChannel"></select>
             </label>
-            <label>
-              $eed
-              <input id="seed" type="text" placeholder="blank $eed" />
-            </label>
             <div class="button-row">
-              <button id="importSeed" class="secondary">Import $eed</button>
-              <button id="copySeed" class="secondary">Copy $eed</button>
-              <button id="randomSeed" class="secondary">Random $eed</button>
+              <button id="randomSettings" class="secondary">Random</button>
             </div>
           </div>
         </section>
@@ -1535,7 +1555,11 @@
     </div>
   </div>
 
-  <button id="songToggle" class="song-toggle">$ong</button>
+  <div class="song-controls">
+    <button id="songToggle" class="song-toggle">$ong</button>
+    <button id="undoButton" class="history-button" type="button" title="Undo">←</button>
+    <button id="redoButton" class="history-button" type="button" title="Redo">→</button>
+  </div>
   <div class="theme-control">
     <span>Theme</span>
     <input id="themeSlider" type="range" min="0" max="400" value="0" step="1" />
@@ -2913,7 +2937,7 @@
     const densePatterns = [
       [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
       [0.5, 0.5, 1, 0.5, 0.5, 1],
-      [0.5, 0.5, 0.5, 1, 0.5, 0.5]
+      [0.5, 0.5, 0.5, 1, 0.5, 1]
     ];
 
     function pickDensityIndex(densityPercent, rng) {
@@ -3490,7 +3514,8 @@
               colorPercent: color,
               minBars: 1
             });
-            sectionChords = createSectionVariation(sectionCache.get(baseKey), fresh, complexity);
+            const variationRng = makeRng(`${sectionSeed}|variation`);
+            sectionChords = createSectionVariation(sectionCache.get(baseKey), fresh, complexity, variationRng);
           } else {
             sectionChords = cloneChordList(base);
           }
@@ -3898,20 +3923,6 @@
         sumBars += 1;
       }
 
-      const shortRepeatChance = complexityPercent > 30
-        ? clampValue(0.75 - complexity * 0.4, 0.2, 0.75)
-        : 0;
-      if (shortRepeatChance > 0) {
-        for (let i = 1; i < sections.length; i++) {
-          const prev = sections[i - 1];
-          const cur = sections[i];
-          if (prev.bars <= 2 && rng() < shortRepeatChance) {
-            cur.name = prev.name;
-            cur.repeatGroup = prev.repeatGroup || cur.repeatGroup;
-          }
-        }
-      }
-
       const labelMap = {
         intro: "Intro",
         verse: "Verse",
@@ -3924,12 +3935,24 @@
 
       let cursor = 0;
       const groupCounts = {};
+      const lastGroup = {};
+      const lowComplexityRepeatAll = complexityPercent <= 30;
       sections = sections.map(section => {
         let group = section.repeatGroup;
+        const hasPrev = lastGroup[section.name];
         if (!group) {
-          group = (groupCounts[section.name] || 0) + 1;
+          const shortRepeatChance = clampValue(0.8 - complexity * 0.5, 0.2, 0.8);
+          const repeatChance = hasPrev
+            ? Math.min(0.95, shortRepeatChance + (section.bars <= 2 ? 0.25 : 0))
+            : 0;
+          if (hasPrev && (lowComplexityRepeatAll || rng() < repeatChance)) {
+            group = lastGroup[section.name];
+          } else {
+            group = (groupCounts[section.name] || 0) + 1;
+          }
         }
         groupCounts[section.name] = Math.max(groupCounts[section.name] || 0, group);
+        lastGroup[section.name] = group;
         const startBar = cursor;
         cursor += section.bars;
         return {
@@ -4008,7 +4031,7 @@
       }));
     }
 
-    function createSectionVariation(baseChords, freshChords, complexityPercent) {
+    function createSectionVariation(baseChords, freshChords, complexityPercent, rng = Math.random) {
       if (!baseChords.length || !freshChords.length) return cloneChordList(baseChords);
       const variation = baseChords.map(chord => ({
         name: chord.name,
@@ -4022,7 +4045,7 @@
       const midEnd = maxSwap - 2;
       const chance = clampValue(complexityPercent, 0, 100) / 100 * 0.6 + 0.2;
       for (let i = midStart; i <= midEnd; i++) {
-        if (Math.random() < chance) {
+        if (rng() < chance) {
           variation[i] = {
             name: freshChords[i].name,
             quality: freshChords[i].quality,
@@ -4084,6 +4107,326 @@
       if (formComplexityInput) {
         formComplexityInput.disabled = !formEnabled;
       }
+    }
+
+    function cloneChordArray(chords) {
+      return (chords || []).map(chord => ({
+        name: chord.name,
+        quality: chord.quality,
+        duration: chord.duration,
+        notes: chord.notes ? chord.notes.slice() : [],
+        section: chord.section || null
+      }));
+    }
+
+    function cloneNoteArray(notes) {
+      return (notes || []).map(note => ({ ...note }));
+    }
+
+    function cloneFormArray(sections) {
+      return (sections || []).map(section => ({ ...section }));
+    }
+
+    function getCurrentGenreLabel() {
+      const seedBlend = getActiveBlend();
+      const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
+      if (blendSubs) {
+        return blendSubs.map(getSubGenreLabel).join(" + ");
+      }
+      if (genreMain && genreSub && genreCatalog[genreMain.value] && genreCatalog[genreMain.value].sub[genreSub.value]) {
+        return genreCatalog[genreMain.value].sub[genreSub.value];
+      }
+      return genreSub?.value || "base";
+    }
+
+    function captureSnapshot() {
+      if (!currentChords || !currentChords.length) return null;
+      const subdivisionDensityValue = parseInt(subdivisionDensityInput?.value, 10);
+      const snapshot = {
+        controls: {
+          key: keySelect?.value || "",
+          genreMain: genreMain?.value || "",
+          genreSub: genreSub?.value || "",
+          bars: barsInput?.value || "",
+          density: densityInput?.value || "",
+          color: colorInput?.value || "",
+          modulation: modulationInput?.value || "",
+          subdivision: subdivisionInput?.value || "",
+          subdivisionDensity: subdivisionDensityInput?.value || "",
+          formEnabled,
+          formComplexity: formComplexityInput?.value || "",
+          tempo: tempoInput?.value || "",
+          chordVolume: chordVolumeInput?.value || "",
+          bassVolume: bassVolumeInput?.value || "",
+          melodyVolume: melodyVolumeInput?.value || "",
+          drumVolume: drumVolumeInput?.value || "",
+          chordChannel: chordChannelSelect?.value || "",
+          bassChannel: bassChannelSelect?.value || "",
+          melodyChannel: melodyChannelSelect?.value || "",
+          bassGenreMain: bassGenreMain?.value || "",
+          bassGenreSub: bassGenreSub?.value || "",
+          melodyGenreMain: melodyGenreMain?.value || "",
+          melodyGenreSub: melodyGenreSub?.value || "",
+          drumGenreMain: drumGenreMain?.value || "",
+          drumGenreSub: drumGenreSub?.value || "",
+          bassDensity: bassDensityInput?.value || "",
+          bassMovement: bassMovementInput?.value || "",
+          bassColor: bassColorInput?.value || "",
+          bassFills: bassFillsInput?.value || "",
+          bassSubdivisionDensity: bassSubdivisionDensityInput?.value || "",
+          bassSubdivision: bassSubdivisionInput?.value || "",
+          bassStyle: bassStyleInput?.value || "",
+          bassRegister: bassRegisterInput?.value || "",
+          melodyDensity: melodyDensityInput?.value || "",
+          melodyMovement: melodyMovementInput?.value || "",
+          melodyColor: melodyColorInput?.value || "",
+          melodyFills: melodyFillsInput?.value || "",
+          melodySubdivisionDensity: melodySubdivisionDensityInput?.value || "",
+          melodySubdivision: melodySubdivisionInput?.value || "",
+          melodyStyle: melodyStyleInput?.value || "",
+          melodyRegister: melodyRegisterInput?.value || "",
+          drumDensity: drumDensityInput?.value || "",
+          drumComplexity: drumComplexityInput?.value || "",
+          drumFills: drumFillsInput?.value || "",
+          drumGhost: drumGhostInput?.value || "",
+          drumVelocity: drumVelocityInput?.value || "",
+          drumStyle: drumStyleInput?.value || "",
+          loopModes: {
+            chord: chordPlaybackMode,
+            bass: bassPlaybackMode,
+            melody: melodyPlaybackMode,
+            drum: drumPlaybackMode
+          },
+          mutes: {
+            chord: chordMuted,
+            bass: bassMuted,
+            melody: melodyMuted,
+            drum: drumMuted
+          },
+          songMode,
+          selectionMode,
+          themeValue: themeSlider?.value || "0",
+          blendMode: document.body.classList.contains("blend-mode"),
+          manualBlendEnabled,
+          manualBlendGenres: manualBlendGenres.slice(),
+          panelsCollapsed: {
+            chord: chordPanel?.classList.contains("collapsed") || false,
+            bass: bassPanel?.classList.contains("collapsed") || false,
+            melody: melodyPanel?.classList.contains("collapsed") || false,
+            drum: drumPanel?.classList.contains("collapsed") || false
+          }
+        },
+        state: {
+          currentSeed,
+          bassSeedCounter,
+          melodySeedCounter,
+          drumSeedCounter,
+          bassAutoRegenerate,
+          melodyAutoRegenerate,
+          drumAutoRegenerate,
+          currentKeyUsed,
+          currentKeyLabel,
+          currentBpm,
+          currentFileName
+        },
+        cycle: {
+          seedLabel: currentSeed,
+          bars: parseInt(barsInput?.value, 10) || 4,
+          bpm: currentBpm,
+          key: currentKeyUsed,
+          keyLabel: currentKeyLabel,
+          genreLabel: getCurrentGenreLabel(),
+          densityPercent: parseInt(densityInput?.value, 10) || 0,
+          colorPercent: parseInt(colorInput?.value, 10) || 0,
+          modulationPercent: parseInt(modulationInput?.value, 10) || 0,
+          subdivision: subdivisionInput?.value || "even",
+          subdivisionDensity: Number.isNaN(subdivisionDensityValue)
+            ? 0
+            : Math.max(0, Math.min(100, subdivisionDensityValue)) / 100,
+          chords: cloneChordArray(currentChords),
+          bass: cloneNoteArray(currentBass),
+          melody: cloneNoteArray(currentMelody),
+          drums: cloneNoteArray(currentDrums),
+          formSections: cloneFormArray(currentFormSections),
+          formComplexity: formComplexityInput?.value || "",
+          counters: {
+            bass: bassSeedCounter,
+            melody: melodySeedCounter,
+            drum: drumSeedCounter
+          }
+        },
+        selection: {
+          chords: Array.from(selectedChordIndices),
+          bass: Array.from(selectedBassIndices),
+          melody: Array.from(selectedMelodyIndices),
+          drums: Array.from(selectedDrumIndices)
+        }
+      };
+      return snapshot;
+    }
+
+    function updateHistoryButtons() {
+      if (undoButton) undoButton.disabled = historyIndex <= 0;
+      if (redoButton) redoButton.disabled = historyIndex >= historyStack.length - 1;
+    }
+
+    function pushHistory() {
+      if (suppressHistory) return;
+      const snapshot = captureSnapshot();
+      if (!snapshot) return;
+      if (historyIndex < historyStack.length - 1) {
+        historyStack.splice(historyIndex + 1);
+      }
+      historyStack.push(snapshot);
+      if (historyStack.length > HISTORY_LIMIT) {
+        historyStack.shift();
+      }
+      historyIndex = historyStack.length - 1;
+      updateHistoryButtons();
+    }
+
+    function applySnapshot(snapshot) {
+      if (!snapshot) return;
+      suppressHistory = true;
+      stopPlayback();
+      if (keySelect && snapshot.controls.key) keySelect.value = snapshot.controls.key;
+      if (genreMain && genreSub && snapshot.controls.genreMain) {
+        genreMain.value = snapshot.controls.genreMain;
+        populateSubgenresFor(genreMain.value, genreSub, snapshot.controls.genreSub);
+      }
+      if (bassGenreMain && bassGenreSub && snapshot.controls.bassGenreMain) {
+        bassGenreMain.value = snapshot.controls.bassGenreMain;
+        populateSubgenresFor(bassGenreMain.value, bassGenreSub, snapshot.controls.bassGenreSub);
+      }
+      if (melodyGenreMain && melodyGenreSub && snapshot.controls.melodyGenreMain) {
+        melodyGenreMain.value = snapshot.controls.melodyGenreMain;
+        populateSubgenresFor(melodyGenreMain.value, melodyGenreSub, snapshot.controls.melodyGenreSub);
+      }
+      if (drumGenreMain && drumGenreSub && snapshot.controls.drumGenreMain) {
+        drumGenreMain.value = snapshot.controls.drumGenreMain;
+        populateSubgenresFor(drumGenreMain.value, drumGenreSub, snapshot.controls.drumGenreSub);
+      }
+
+      if (barsInput) barsInput.value = snapshot.controls.bars;
+      if (densityInput) densityInput.value = snapshot.controls.density;
+      if (colorInput) colorInput.value = snapshot.controls.color;
+      if (modulationInput) modulationInput.value = snapshot.controls.modulation;
+      if (subdivisionInput) subdivisionInput.value = snapshot.controls.subdivision;
+      if (subdivisionDensityInput) subdivisionDensityInput.value = snapshot.controls.subdivisionDensity;
+      if (formComplexityInput) formComplexityInput.value = snapshot.controls.formComplexity;
+      setFormEnabledState(snapshot.controls.formEnabled);
+
+      if (tempoInput) tempoInput.value = snapshot.controls.tempo;
+      if (chordVolumeInput) chordVolumeInput.value = snapshot.controls.chordVolume;
+      if (bassVolumeInput) bassVolumeInput.value = snapshot.controls.bassVolume;
+      if (melodyVolumeInput) melodyVolumeInput.value = snapshot.controls.melodyVolume;
+      if (drumVolumeInput) drumVolumeInput.value = snapshot.controls.drumVolume;
+      if (chordChannelSelect) chordChannelSelect.value = snapshot.controls.chordChannel;
+      if (bassChannelSelect) bassChannelSelect.value = snapshot.controls.bassChannel;
+      if (melodyChannelSelect) melodyChannelSelect.value = snapshot.controls.melodyChannel;
+
+      if (bassDensityInput) bassDensityInput.value = snapshot.controls.bassDensity;
+      if (bassMovementInput) bassMovementInput.value = snapshot.controls.bassMovement;
+      if (bassColorInput) bassColorInput.value = snapshot.controls.bassColor;
+      if (bassFillsInput) bassFillsInput.value = snapshot.controls.bassFills;
+      if (bassSubdivisionDensityInput) bassSubdivisionDensityInput.value = snapshot.controls.bassSubdivisionDensity;
+      if (bassSubdivisionInput) bassSubdivisionInput.value = snapshot.controls.bassSubdivision;
+      if (bassStyleInput) bassStyleInput.value = snapshot.controls.bassStyle;
+      if (bassRegisterInput) bassRegisterInput.value = snapshot.controls.bassRegister;
+
+      if (melodyDensityInput) melodyDensityInput.value = snapshot.controls.melodyDensity;
+      if (melodyMovementInput) melodyMovementInput.value = snapshot.controls.melodyMovement;
+      if (melodyColorInput) melodyColorInput.value = snapshot.controls.melodyColor;
+      if (melodyFillsInput) melodyFillsInput.value = snapshot.controls.melodyFills;
+      if (melodySubdivisionDensityInput) melodySubdivisionDensityInput.value = snapshot.controls.melodySubdivisionDensity;
+      if (melodySubdivisionInput) melodySubdivisionInput.value = snapshot.controls.melodySubdivision;
+      if (melodyStyleInput) melodyStyleInput.value = snapshot.controls.melodyStyle;
+      if (melodyRegisterInput) melodyRegisterInput.value = snapshot.controls.melodyRegister;
+
+      if (drumDensityInput) drumDensityInput.value = snapshot.controls.drumDensity;
+      if (drumComplexityInput) drumComplexityInput.value = snapshot.controls.drumComplexity;
+      if (drumFillsInput) drumFillsInput.value = snapshot.controls.drumFills;
+      if (drumGhostInput) drumGhostInput.value = snapshot.controls.drumGhost;
+      if (drumVelocityInput) drumVelocityInput.value = snapshot.controls.drumVelocity;
+      if (drumStyleInput) drumStyleInput.value = snapshot.controls.drumStyle;
+
+      songMode = !!snapshot.controls.songMode;
+      document.body.classList.toggle("song-mode", songMode);
+      if (songToggle) songToggle.textContent = songMode ? "¢hange" : "$ong";
+      if (titleLeft && titleRight) {
+        titleLeft.textContent = songMode ? "$ong" : "¢hange";
+        titleRight.textContent = songMode ? "Machine" : "machine";
+      }
+
+      if (themeSlider) {
+        themeSlider.value = snapshot.controls.themeValue || "0";
+        const value = (parseInt(themeSlider.value, 10) || 0) / 100;
+        applyThemeMix(value);
+      }
+
+      document.body.classList.toggle("blend-mode", snapshot.controls.blendMode);
+      manualBlendEnabled = snapshot.controls.manualBlendEnabled;
+      manualBlendGenres = snapshot.controls.manualBlendGenres.slice();
+      if (snapshot.controls.blendMode) {
+        syncBlendSelects(manualBlendGenres.length ? manualBlendGenres : [`${genreMain?.value || "core"}:${genreSub?.value || "base"}`]);
+        updateManualBlendFromSelects(true);
+      } else {
+        syncBlendSelects([]);
+      }
+
+      chordMuted = snapshot.controls.mutes.chord;
+      bassMuted = snapshot.controls.mutes.bass;
+      melodyMuted = snapshot.controls.mutes.melody;
+      drumMuted = snapshot.controls.mutes.drum;
+      updateMuteButton(chordMute, chordMuted);
+      updateMuteButton(bassMute, bassMuted);
+      updateMuteButton(melodyMute, melodyMuted);
+      updateMuteButton(drumMute, drumMuted);
+
+      setTrackPlaybackMode("chord", snapshot.controls.loopModes.chord);
+      setTrackPlaybackMode("bass", snapshot.controls.loopModes.bass);
+      setTrackPlaybackMode("melody", snapshot.controls.loopModes.melody);
+      setTrackPlaybackMode("drum", snapshot.controls.loopModes.drum);
+
+      setPanelCollapsedState(chordPanel, chordCollapse, snapshot.controls.panelsCollapsed.chord);
+      setPanelCollapsedState(bassPanel, bassCollapse, snapshot.controls.panelsCollapsed.bass);
+      setPanelCollapsedState(melodyPanel, melodyCollapse, snapshot.controls.panelsCollapsed.melody);
+      setPanelCollapsedState(drumPanel, drumCollapse, snapshot.controls.panelsCollapsed.drum);
+
+      bassAutoRegenerate = snapshot.state.bassAutoRegenerate;
+      melodyAutoRegenerate = snapshot.state.melodyAutoRegenerate;
+      drumAutoRegenerate = snapshot.state.drumAutoRegenerate;
+      bassSeedCounter = snapshot.state.bassSeedCounter;
+      melodySeedCounter = snapshot.state.melodySeedCounter;
+      drumSeedCounter = snapshot.state.drumSeedCounter;
+      currentSeed = snapshot.state.currentSeed;
+      currentKeyUsed = snapshot.state.currentKeyUsed;
+      currentKeyLabel = snapshot.state.currentKeyLabel;
+      currentBpm = snapshot.state.currentBpm;
+      currentFileName = snapshot.state.currentFileName;
+
+      applyChordRegenCycle({
+        ...snapshot.cycle,
+        chords: cloneChordArray(snapshot.cycle.chords),
+        bass: cloneNoteArray(snapshot.cycle.bass),
+        melody: cloneNoteArray(snapshot.cycle.melody),
+        drums: cloneNoteArray(snapshot.cycle.drums),
+        formSections: cloneFormArray(snapshot.cycle.formSections)
+      }, false);
+
+      setSelectionMode(snapshot.controls.selectionMode);
+      clearSelection();
+      snapshot.selection.chords.forEach(index => selectedChordIndices.add(index));
+      snapshot.selection.bass.forEach(index => selectedBassIndices.add(index));
+      snapshot.selection.melody.forEach(index => selectedMelodyIndices.add(index));
+      snapshot.selection.drums.forEach(index => selectedDrumIndices.add(index));
+      applySelectionStyles();
+
+      updateReadouts();
+      updateTrackGains();
+      schedulePanelAlignment();
+      suppressHistory = false;
+      updateHistoryButtons();
     }
 
     function getBassProfile(genreKey, mainKey) {
@@ -5245,9 +5588,9 @@
 
     function regenerateBass(forceNew = false) {
       if (!currentChords.length) return;
-      const seedLabel = currentSeed || seedInput?.value || "$eed-bass";
+      const seedLabel = currentSeed || createRegenSeedLabel();
       const formComplexityValue = normalizePercent(formComplexityInput?.value, 0);
-      const seedBlend = getActiveBlend(seedLabel);
+      const seedBlend = getActiveBlend();
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const bassSeed = getBassSeedLabel(seedLabel, forceNew);
@@ -5285,9 +5628,9 @@
 
     function regenerateMelody(forceNew = false) {
       if (!currentChords.length) return;
-      const seedLabel = currentSeed || seedInput?.value || "$eed-melody";
+      const seedLabel = currentSeed || createRegenSeedLabel();
       const formComplexityValue = normalizePercent(formComplexityInput?.value, 0);
-      const seedBlend = getActiveBlend(seedLabel);
+      const seedBlend = getActiveBlend();
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const melodySeed = getMelodySeedLabel(seedLabel, forceNew);
@@ -5325,9 +5668,9 @@
 
     function regenerateDrums(forceNew = false) {
       if (!currentChords.length) return;
-      const seedLabel = currentSeed || seedInput?.value || "$eed-drums";
+      const seedLabel = currentSeed || createRegenSeedLabel();
       const formComplexityValue = normalizePercent(formComplexityInput?.value, 0);
-      const seedBlend = getActiveBlend(seedLabel);
+      const seedBlend = getActiveBlend();
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const drumSeed = getDrumSeedLabel(seedLabel, forceNew);
@@ -5369,9 +5712,7 @@
       currentKeyLabel = "C";
       manualBlendGenres = [];
       manualBlendEnabled = false;
-      seedIsRandom = false;
-      seedDrivesSettings = false;
-      seedManual = false;
+      currentSeed = createRegenSeedLabel();
       bassAutoRegenerate = false;
       bassSeedCounter = 0;
       melodyAutoRegenerate = false;
@@ -5399,12 +5740,11 @@
       if (barsInput) barsInput.value = "4";
       if (formComplexityInput) formComplexityInput.value = "30";
       setFormEnabledState(false);
-      if (densityInput) densityInput.value = "50";
+      if (densityInput) densityInput.value = "15";
       if (colorInput) colorInput.value = "50";
       if (modulationInput) modulationInput.value = "15";
-      if (subdivisionDensityInput) subdivisionDensityInput.value = "50";
+      if (subdivisionDensityInput) subdivisionDensityInput.value = "20";
       if (subdivisionInput) subdivisionInput.value = "even";
-      if (seedInput) seedInput.value = "";
       if (chordChannelSelect) chordChannelSelect.value = "1";
       if (bassChannelSelect) bassChannelSelect.value = "2";
       if (bassDensityInput) bassDensityInput.value = "55";
@@ -5496,7 +5836,6 @@
     const modulationInput = document.getElementById("modulation");
     const subdivisionDensityInput = document.getElementById("subdivisionDensity");
     const subdivisionInput = document.getElementById("subdivision");
-    const seedInput = document.getElementById("seed");
     const themeSlider = document.getElementById("themeSlider");
     const midiToggle = document.getElementById("midiToggle");
     const midiRoute = document.getElementById("midiRoute");
@@ -5506,9 +5845,7 @@
     const midiInSelect = document.getElementById("midiInSelect");
     const midiVelocity = document.getElementById("midiVelocity");
     const midiVelocityValue = document.getElementById("midiVelocityValue");
-    const importSeed = document.getElementById("importSeed");
-    const copySeed = document.getElementById("copySeed");
-    const randomSeed = document.getElementById("randomSeed");
+    const randomSettings = document.getElementById("randomSettings");
     const helpButton = document.getElementById("helpButton");
     const helpModal = document.getElementById("helpModal");
     const helpClose = document.getElementById("helpClose");
@@ -5609,6 +5946,8 @@
     const songToggle = document.getElementById("songToggle");
     const titleLeft = document.getElementById("titleLeft");
     const titleRight = document.getElementById("titleRight");
+    const undoButton = document.getElementById("undoButton");
+    const redoButton = document.getElementById("redoButton");
 
     const randomOption = document.createElement("option");
     randomOption.value = "random";
@@ -5818,91 +6157,6 @@
 
     const genreLookup = buildGenreLookup();
 
-    function normalizeGenreToken(value) {
-      return (value || "")
-        .toString()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, " ")
-        .trim();
-    }
-
-    function collapseGenreToken(value) {
-      return normalizeGenreToken(value).replace(/\s+/g, "");
-    }
-
-    function escapeRegex(value) {
-      return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    }
-
-    function findGenreTokenIndex(text, token) {
-      if (!text || !token) return -1;
-      const pattern = new RegExp(`\\b${escapeRegex(token)}\\b`, "i");
-      const match = text.match(pattern);
-      return match ? match.index : -1;
-    }
-
-    function getSeedGenreBlend(seedText) {
-      if (!seedText) return null;
-      const normalized = normalizeGenreToken(seedText);
-      if (!normalized) return null;
-      const collapsed = normalized.replace(/\s+/g, "");
-      const matchMap = new Map();
-      const mainFallback = new Map();
-
-      Object.keys(genreCatalog).forEach(mainKey => {
-        const group = genreCatalog[mainKey];
-        const mainToken = normalizeGenreToken(group.label || mainKey);
-        if (mainToken) {
-          const idx = findGenreTokenIndex(normalized, mainToken);
-          if (idx >= 0) {
-            mainFallback.set(mainKey, idx);
-          }
-        }
-        Object.keys(group.sub).forEach(subKey => {
-          const tokens = [
-            normalizeGenreToken(subKey),
-            normalizeGenreToken(group.sub[subKey])
-          ];
-          tokens.forEach(token => {
-            if (!token) return;
-            let idx = findGenreTokenIndex(normalized, token);
-            if (idx < 0) {
-              const collapsedToken = collapseGenreToken(token);
-              if (collapsedToken && collapsed.includes(collapsedToken)) {
-                idx = collapsed.indexOf(collapsedToken);
-              }
-            }
-            if (idx >= 0) {
-              const existing = matchMap.get(subKey);
-              if (existing === undefined || idx < existing) {
-                matchMap.set(subKey, idx);
-              }
-            }
-          });
-        });
-      });
-
-      if (!matchMap.size && !mainFallback.size) {
-        return null;
-      }
-
-      const matches = Array.from(matchMap.entries())
-        .sort((a, b) => a[1] - b[1])
-        .map(([subKey]) => subKey);
-
-      if (!matches.length && mainFallback.size) {
-        const mainEntries = Array.from(mainFallback.entries()).sort((a, b) => a[1] - b[1]);
-        mainEntries.forEach(([mainKey]) => {
-          const fallbackSub = Object.keys(genreCatalog[mainKey].sub)[0];
-          if (fallbackSub) matches.push(fallbackSub);
-        });
-      }
-
-      if (!matches.length) return null;
-      const mains = matches.map(subKey => genreLookup.subToMain[subKey] || "");
-      return { subs: matches, mains };
-    }
-
     function getSubGenreLabel(subKey) {
       const main = genreLookup.subToMain[subKey];
       if (main && genreCatalog[main] && genreCatalog[main].sub[subKey]) {
@@ -5911,7 +6165,7 @@
       return subKey;
     }
 
-    function getActiveBlend(seedText) {
+    function getActiveBlend() {
       if (manualBlendEnabled && manualBlendGenres.length) {
         return {
           subs: manualBlendGenres.map(value => {
@@ -5924,7 +6178,7 @@
           })
         };
       }
-      return getSeedGenreBlend(seedText);
+      return null;
     }
 
     function buildBlendSelect(selectedValue) {
@@ -5976,120 +6230,6 @@
         blendSelects.appendChild(select);
       });
       updateManualBlendFromSelects();
-    }
-
-    function applyGenreFromSeed(seedText) {
-      if (!genreMain || !genreSub || !seedText) return false;
-      const raw = seedText.toLowerCase().replace(/^\$eed[-\s]*/i, "");
-      if (!raw) return false;
-      let mainKey = null;
-      let subKey = null;
-      const match = raw.match(/([a-z0-9-]+)\s*[:/]\s*([a-z0-9-]+)/i);
-      if (match) {
-        const candidateMain = match[1].toLowerCase();
-        const candidateSub = match[2].toLowerCase();
-        if (genreCatalog[candidateMain] && genreCatalog[candidateMain].sub[candidateSub]) {
-          mainKey = candidateMain;
-          subKey = candidateSub;
-        } else if (genreLookup.subToMain[candidateSub]) {
-          mainKey = genreLookup.subToMain[candidateSub];
-          subKey = candidateSub;
-        }
-      }
-      if (!subKey) {
-        Object.keys(genreLookup.subToMain).some(key => {
-          if (raw.includes(key)) {
-            subKey = key;
-            mainKey = genreLookup.subToMain[key];
-            return true;
-          }
-          return false;
-        });
-      }
-      if (!subKey) {
-        Object.keys(genreLookup.labelToSub).some(label => {
-          if (raw.includes(label)) {
-            subKey = genreLookup.labelToSub[label];
-            mainKey = genreLookup.subToMain[subKey];
-            return true;
-          }
-          return false;
-        });
-      }
-      if (mainKey && subKey) {
-        genreMain.value = mainKey;
-        populateSubgenres(mainKey, subKey);
-        return true;
-      }
-      return false;
-    }
-
-    function applySeedSettings(seedText) {
-      if (!seedText) return;
-      const blend = getSeedGenreBlend(seedText);
-      const hasBlend = !!(blend && blend.subs.length);
-      let usedExplicit = false;
-      if (hasBlend) {
-        const mainKey = blend.mains[0] || genreLookup.subToMain[blend.subs[0]];
-        const subKey = blend.subs[0];
-        if (mainKey && genreMain && genreSub) {
-          genreMain.value = mainKey;
-          populateSubgenres(mainKey, subKey);
-          usedExplicit = true;
-        }
-        if (bassGenreMain && bassGenreSub && mainKey) {
-          bassGenreMain.value = mainKey;
-          populateSubgenresFor(mainKey, bassGenreSub, subKey);
-        }
-        if (melodyGenreMain && melodyGenreSub && mainKey) {
-          melodyGenreMain.value = mainKey;
-          populateSubgenresFor(mainKey, melodyGenreSub, subKey);
-        }
-        if (drumGenreMain && drumGenreSub && mainKey) {
-          drumGenreMain.value = mainKey;
-          populateSubgenresFor(mainKey, drumGenreSub, subKey);
-        }
-      } else {
-        usedExplicit = applyGenreFromSeed(seedText);
-      }
-      const rng = makeRng(`${seedText}|settings`);
-      if (!usedExplicit && genreMain && genreSub) {
-        const mainKeys = Object.keys(genreCatalog);
-        const mainPick = mainKeys[Math.floor(rng() * mainKeys.length)];
-        genreMain.value = mainPick;
-        populateSubgenres(mainPick);
-        const subKeys = Object.keys(genreCatalog[mainPick].sub);
-        genreSub.value = subKeys[Math.floor(rng() * subKeys.length)];
-      }
-      if (densityInput) densityInput.value = String(Math.floor(rng() * 101));
-      if (colorInput) colorInput.value = String(Math.floor(rng() * 101));
-      if (subdivisionDensityInput) subdivisionDensityInput.value = String(Math.floor(rng() * 101));
-      if (modulationInput) modulationInput.value = String(Math.floor(rng() * 101));
-      if (barsInput) barsInput.value = String(4 + Math.floor(rng() * 29));
-      if (tempoInput) tempoInput.value = String(60 + Math.floor(rng() * 141));
-      if (subdivisionInput) subdivisionInput.value = rng() < 0.5 ? "even" : "mixed";
-      if (drumDensityInput) drumDensityInput.value = String(Math.floor(rng() * 101));
-      if (drumComplexityInput) drumComplexityInput.value = String(Math.floor(rng() * 101));
-      if (drumFillsInput) drumFillsInput.value = String(Math.floor(rng() * 101));
-      if (drumGhostInput) drumGhostInput.value = String(Math.floor(rng() * 101));
-      if (drumVelocityInput) drumVelocityInput.value = String(40 + Math.floor(rng() * 61));
-      if (drumStyleInput) {
-        const styles = Array.from(drumStyleInput.options).map(option => option.value);
-        drumStyleInput.value = styles[Math.floor(rng() * styles.length)] || "auto";
-      }
-      if (!hasBlend && drumGenreMain && drumGenreSub && genreMain && genreSub) {
-        drumGenreMain.value = genreMain.value;
-        populateSubgenresFor(drumGenreMain.value, drumGenreSub, genreSub.value);
-      }
-      if (!hasBlend && bassGenreMain && bassGenreSub && genreMain && genreSub) {
-        bassGenreMain.value = genreMain.value;
-        populateSubgenresFor(bassGenreMain.value, bassGenreSub, genreSub.value);
-      }
-      if (!hasBlend && melodyGenreMain && melodyGenreSub && genreMain && genreSub) {
-        melodyGenreMain.value = genreMain.value;
-        populateSubgenresFor(melodyGenreMain.value, melodyGenreSub, genreSub.value);
-      }
-      updateReadouts();
     }
 
     let oscStrokeColor = "rgba(67, 255, 180, 1)";
@@ -6409,10 +6549,7 @@
     let melodySeedCounter = 0;
     let drumAutoRegenerate = false;
     let drumSeedCounter = 0;
-    let currentSeed = "";
-    let seedIsRandom = false;
-    let seedDrivesSettings = false;
-    let seedManual = false;
+    let currentSeed = createRegenSeedLabel();
     let isPlaying = false;
     let playTimers = [];
     let audioContext = null;
@@ -6479,6 +6616,10 @@
     let playheadStartBeat = 0;
     let playheadBeatSec = 0;
     let playheadTotalBeats = 0;
+    let suppressHistory = false;
+    const historyStack = [];
+    let historyIndex = -1;
+    const HISTORY_LIMIT = 20;
     syncBlendSelects([]);
     setFormEnabledState(false);
 
@@ -7580,19 +7721,18 @@
 
     function regenerateSelectedChords() {
       if (!selectedChordIndices.size) {
-        applyRandomSeedIfNeeded();
-        render();
+        render(createRegenSeedLabel());
         return;
       }
-      const seedLabel = currentSeed || seedInput.value.trim() || `$eed-${Date.now()}`;
-      const newSeed = `${seedLabel}|chordsel-${Date.now()}`;
+      const seedLabel = currentSeed || createRegenSeedLabel();
+      const newSeed = `${seedLabel}|chordsel-${createRegenSeedLabel().replace("change-", "")}`;
       const bars = parseInt(barsInput.value, 10);
       const densityPercent = Math.max(0, Math.min(100, parseInt(densityInput.value, 10) || 0));
       const colorPercent = Math.max(0, Math.min(100, parseInt(colorInput.value, 10) || 0));
       const modulationPercent = Math.max(0, Math.min(100, parseInt(modulationInput.value, 10) || 0));
       const subdivision = subdivisionInput.value;
       const subdivisionDensity = Math.max(0, Math.min(100, parseInt(subdivisionDensityInput.value, 10) || 0)) / 100;
-      const seedBlend = getActiveBlend(seedLabel);
+      const seedBlend = getActiveBlend();
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const genre = blendSubs || (genreSub ? genreSub.value : "base");
       const key = currentKeyUsed || keySelect.value || "C";
@@ -7624,8 +7764,8 @@
         regenerateBass(true);
         return;
       }
-      const seedLabel = currentSeed || seedInput?.value || "$eed-bass";
-      const seedBlend = getActiveBlend(seedLabel);
+      const seedLabel = currentSeed || createRegenSeedLabel();
+      const seedBlend = getActiveBlend();
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const bassSeed = getBassSeedLabel(seedLabel, true);
@@ -7658,8 +7798,8 @@
         regenerateMelody(true);
         return;
       }
-      const seedLabel = currentSeed || seedInput?.value || "$eed-melody";
-      const seedBlend = getActiveBlend(seedLabel);
+      const seedLabel = currentSeed || createRegenSeedLabel();
+      const seedBlend = getActiveBlend();
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const melodySeed = getMelodySeedLabel(seedLabel, true);
@@ -7692,8 +7832,8 @@
         regenerateDrums(true);
         return;
       }
-      const seedLabel = currentSeed || seedInput?.value || "$eed-drums";
-      const seedBlend = getActiveBlend(seedLabel);
+      const seedLabel = currentSeed || createRegenSeedLabel();
+      const seedBlend = getActiveBlend();
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const drumSeed = getDrumSeedLabel(seedLabel, true);
@@ -8021,7 +8161,7 @@
 
     function getSettingsSignature() {
       const signature = {
-        seed: seedInput?.value || "",
+        seed: currentSeed || "",
         key: keySelect?.value || "",
         bars: barsInput?.value || "",
         formOn: formEnabled,
@@ -8086,19 +8226,7 @@
 
     function createRegenSeedLabel() {
       const rand = Math.random().toString(36).slice(2, 8);
-      return `$eed-${rand}`;
-    }
-
-    function applySeedLabel(seedLabel, markRandom = false) {
-      currentSeed = seedLabel;
-      if (seedInput) {
-        seedInput.value = seedLabel;
-      }
-      if (markRandom) {
-        seedIsRandom = true;
-        seedManual = false;
-        seedDrivesSettings = false;
-      }
+      return `change-${rand}`;
     }
 
     function buildSeedLabelWithCounter(baseSeed, counter, type, forceNew = false) {
@@ -8125,7 +8253,7 @@
       const subdivision = subdivisionInput.value;
       const subdivisionDensity = Math.max(0, Math.min(100, parseInt(subdivisionDensityInput.value, 10) || 0)) / 100;
       const bpm = getPlaybackBpm();
-      const seedBlend = getActiveBlend(seedLabel);
+      const seedBlend = getActiveBlend();
       const blendSubs = seedBlend && seedBlend.subs && seedBlend.subs.length ? seedBlend.subs : null;
       const blendMains = seedBlend && seedBlend.mains && seedBlend.mains.length ? seedBlend.mains : null;
       const genre = blendSubs || (genreSub ? genreSub.value : "base");
@@ -8283,7 +8411,7 @@
       currentMelody = cycle.melody || [];
       currentDrums = cycle.drums || [];
       currentFormSections = cycle.formSections || [];
-      applySeedLabel(cycle.seedLabel, markSeedRandom);
+      currentSeed = cycle.seedLabel;
       currentFileName = `${sanitizeFileName(cycle.seedLabel)}.mid`;
       rebuildMidi();
 
@@ -8358,11 +8486,10 @@
       progressionText.value = formatProgressionTextFromTokens(chordTextTokens);
       renderProgressionHighlight(currentChordIndex);
       const subdivisionLabel = cycle.subdivision === "mixed" ? "even+triplet" : "even";
-      const seedDisplay = cycle.seedLabel.startsWith("$eed") ? cycle.seedLabel : `$eed ${cycle.seedLabel}`;
       const formLabel = (cycle.formSections && cycle.formSections.length)
         ? ` | form ${cycle.formComplexity ?? 0}%`
         : "";
-      footer.textContent = `Key ${cycle.keyLabel} | ${cycle.bars} bars | ${cycle.bpm} BPM | ${cycle.genreLabel} | density ${cycle.densityPercent}% | color ${cycle.colorPercent}% | mod ${cycle.modulationPercent}% | ${subdivisionLabel} | subdiv ${Math.round(cycle.subdivisionDensity * 100)}%${formLabel} | ${seedDisplay}`;
+      footer.textContent = `Key ${cycle.keyLabel} | ${cycle.bars} bars | ${cycle.bpm} BPM | ${cycle.genreLabel} | density ${cycle.densityPercent}% | color ${cycle.colorPercent}% | mod ${cycle.modulationPercent}% | ${subdivisionLabel} | subdiv ${Math.round(cycle.subdivisionDensity * 100)}%${formLabel}`;
     }
 
     function clearPendingCycle() {
@@ -8390,33 +8517,61 @@
       playTimers.push(pendingCycleTimer);
     }
 
-    function render() {
+    function render(seedOverride = null) {
       stopPlayback();
       const previousSeed = currentSeed;
-      const seedLabel = seedInput.value.trim() || `$eed-${Date.now()}`;
-      if (seedDrivesSettings) {
-        applySeedSettings(seedLabel);
+      const seedLabel = seedOverride || currentSeed || createRegenSeedLabel();
+      if (seedOverride || !currentSeed) {
+        currentSeed = seedLabel;
       }
       updateReadouts();
       const cycle = prepareChordRegenCycle(seedLabel, previousSeed);
       applyChordRegenCycle(cycle, false);
     }
 
-    function applyRandomSeedIfNeeded() {
-      if (seedIsRandom) {
-        const rand = Math.random().toString(36).slice(2, 8);
-        seedInput.value = `$eed-${rand}`;
-        return;
+    function randomizeChordSettings() {
+      if (keySelect) {
+        const options = Array.from(keySelect.options).map(option => option.value);
+        const pool = options.filter(value => value && value !== "random");
+        const list = pool.length ? pool : options;
+        keySelect.value = list[Math.floor(Math.random() * list.length)] || keySelect.value;
       }
-      if (!seedManual) {
-        const rand = Math.random().toString(36).slice(2, 8);
-        seedInput.value = `$eed-${rand}`;
+      if (document.body.classList.contains("blend-mode") && blendSelects) {
+        const selects = Array.from(blendSelects.querySelectorAll("select"));
+        if (selects.length) {
+          selects.forEach(select => {
+            const values = Array.from(select.options).map(option => option.value);
+            if (values.length) {
+              select.value = values[Math.floor(Math.random() * values.length)];
+            }
+          });
+          updateManualBlendFromSelects(true);
+        }
+      } else if (genreMain && genreSub) {
+        const mainKeys = Object.keys(genreCatalog);
+        const mainPick = mainKeys[Math.floor(Math.random() * mainKeys.length)] || genreMain.value;
+        genreMain.value = mainPick;
+        populateSubgenres(mainPick);
+        const subKeys = Object.keys(genreCatalog[mainPick].sub);
+        genreSub.value = subKeys[Math.floor(Math.random() * subKeys.length)] || genreSub.value;
       }
-    }
-
-    function applyRegenSeed() {
-      const seedLabel = createRegenSeedLabel();
-      applySeedLabel(seedLabel, true);
+      if (barsInput) {
+        const min = parseInt(barsInput.min, 10) || 4;
+        const max = parseInt(barsInput.max, 10) || 32;
+        let nextBars = min + Math.floor(Math.random() * (max - min + 1));
+        if (formEnabled && nextBars < 8) {
+          nextBars = 8;
+        }
+        barsInput.value = String(nextBars);
+      }
+      if (densityInput) densityInput.value = String(Math.floor(Math.random() * 101));
+      if (colorInput) colorInput.value = String(Math.floor(Math.random() * 101));
+      if (modulationInput) modulationInput.value = String(Math.floor(Math.random() * 101));
+      if (subdivisionDensityInput) subdivisionDensityInput.value = String(Math.floor(Math.random() * 101));
+      if (subdivisionInput) subdivisionInput.value = Math.random() < 0.5 ? "even" : "mixed";
+      updateReadouts();
+      render(createRegenSeedLabel());
+      pushHistory();
     }
 
     function randomizeBassControls() {
@@ -8438,6 +8593,7 @@
       updateReadouts();
       bassAutoRegenerate = true;
       regenerateBass(true);
+      pushHistory();
     }
 
     function randomizeMelodyControls() {
@@ -8459,6 +8615,7 @@
       updateReadouts();
       melodyAutoRegenerate = true;
       regenerateMelody(true);
+      pushHistory();
     }
 
     function randomizeDrumControls() {
@@ -8482,16 +8639,23 @@
       updateReadouts();
       drumAutoRegenerate = true;
       regenerateDrums(true);
+      pushHistory();
     }
 
     document.getElementById("generate").addEventListener("click", () => {
       if (selectedChordIndices.size) {
         regenerateSelectedChords();
       } else {
-        applyRandomSeedIfNeeded();
-        render();
+        render(createRegenSeedLabel());
       }
+      pushHistory();
     });
+
+    if (randomSettings) {
+      randomSettings.addEventListener("click", () => {
+        randomizeChordSettings();
+      });
+    }
 
     document.getElementById("download").addEventListener("click", () => {
       if (!currentMidi) return;
@@ -8521,70 +8685,12 @@
       }
     });
 
-    importSeed.addEventListener("click", () => {
-      const trimmed = seedInput.value.trim();
-      if (!trimmed) return;
-      seedIsRandom = false;
-      seedDrivesSettings = true;
-      seedManual = false;
-      render();
-      seedDrivesSettings = false;
-    });
-
-    seedInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        if (seedInput.value.trim()) {
-          seedIsRandom = false;
-          seedDrivesSettings = true;
-          seedManual = false;
-          render();
-          seedDrivesSettings = false;
-        }
-      }
-    });
-
-    seedInput.addEventListener("input", () => {
-      seedIsRandom = false;
-      seedDrivesSettings = true;
-      seedManual = seedInput.value.trim().length > 0;
-    });
-
-    copySeed.addEventListener("click", async () => {
-      const seedValue = (seedInput.value.trim() || currentSeed || "").trim();
-      if (!seedValue) return;
-      try {
-        await navigator.clipboard.writeText(seedValue);
-        copySeed.textContent = "Copied";
-        setTimeout(() => {
-          copySeed.textContent = "Copy $eed";
-        }, 1200);
-      } catch (err) {
-        seedInput.focus();
-        seedInput.select();
-        document.execCommand("copy");
-      }
-    });
-
-    randomSeed.addEventListener("click", () => {
-      const rand = Math.random().toString(36).slice(2, 8);
-      seedInput.value = `$eed-${rand}`;
-      seedIsRandom = true;
-      seedDrivesSettings = true;
-      seedManual = false;
-      render();
-      seedDrivesSettings = false;
-    });
-
     if (blendToggle) {
       blendToggle.addEventListener("click", () => {
         const enable = !document.body.classList.contains("blend-mode");
         document.body.classList.toggle("blend-mode", enable);
         if (enable) {
-          const seedBlend = getSeedGenreBlend(seedInput.value.trim());
-          const defaults = seedBlend && seedBlend.subs.length
-            ? seedBlend.subs.map(subKey => `${genreLookup.subToMain[subKey]}:${subKey}`)
-            : [`${genreMain?.value || "core"}:${genreSub?.value || "base"}`];
+          const defaults = [`${genreMain?.value || "core"}:${genreSub?.value || "base"}`];
           syncBlendSelects(defaults);
           updateManualBlendFromSelects(true);
         } else {
@@ -8601,6 +8707,7 @@
           syncBlendSelects([]);
         }
         render();
+        pushHistory();
       });
     }
 
@@ -8623,6 +8730,7 @@
         } else {
           regenerateBass(true);
         }
+        pushHistory();
       });
     }
 
@@ -8633,6 +8741,7 @@
         } else {
           regenerateMelody(true);
         }
+        pushHistory();
       });
     }
 
@@ -8643,6 +8752,7 @@
         } else {
           regenerateDrums(true);
         }
+        pushHistory();
       });
     }
 
@@ -8675,7 +8785,6 @@
       "- Select: Drag a box over clips, then hit ¢hords/฿ass/Melody/Drums to replace only the selection.",
       "- Loop/Regen (per track): Loop that track or regenerate it at the end.",
       "- Mute icons: Toggle chord/bass/melody/drums audio + MIDI.",
-      "- $eed: Paste any text to make a repeatable progression; include multiple genre words to blend styles.",
       "",
       "BUTTONS",
       "- ¢hords: Generate a new progression.",
@@ -8683,15 +8792,14 @@
       "- Download .mid: Save the MIDI file.",
       "- MIDI Out: Enable WebMIDI output (Chrome).",
       "- Route: Select MIDI in/out ports (default Logic Pro Virtual In/Out).",
-      "- Import $eed: Load the current $eed value.",
-      "- Copy $eed: Copy the current $eed.",
-      "- Random $eed: Randomizes $eed and settings.",
+      "- Random: Randomize chord settings (key/genre/density/etc); in Blend mode it randomizes the mix.",
       "- Copy progression: Copy chord text.",
       "- ฿ass: Generate a bass line in $ong mode.",
       "- Melody: Generate a melody line in $ong mode.",
       "- Drums: Generate a drum pattern in $ong mode.",
       "- Random bass / Random melody: Randomize track controls and regenerate.",
       "- Random drums: Randomize drum controls and regenerate.",
+      "- Undo/Redo: Step backward/forward through recent changes.",
       "- Reset: Restore default settings.",
       "- Click clips: Jump the playhead and audition that chord/bass/melody/drum.",
       "",
@@ -8699,8 +8807,6 @@
       "- Space: Play/Stop (global).",
       "- Left/Right: Step through chords.",
       "- C: ¢hords (new progression).",
-      "- R: Random $eed.",
-      "- Enter (in $eed): Import $eed.",
       "- B: Generate bass.",
       "- M: Generate melody.",
       "- D: Generate drums.",
@@ -8905,16 +9011,9 @@
       } else if (event.key === "Escape" && routeModal && routeModal.classList.contains("active")) {
         event.preventDefault();
         closeRouteModal();
-      } else if (event.target === seedInput) {
-        return;
       } else if ((event.key === "c" || event.key === "C") && !isCtrl) {
         event.preventDefault();
-        applyRandomSeedIfNeeded();
-        render();
-        return;
-      } else if ((event.key === "r" || event.key === "R") && !isCtrl) {
-        event.preventDefault();
-        randomSeed.click();
+        render(createRegenSeedLabel());
         return;
       } else if ((event.key === "b" || event.key === "B") && !isCtrl) {
         if (!bassGenerate) return;
@@ -8987,7 +9086,6 @@
     });
 
     barsInput.addEventListener("input", () => {
-      seedDrivesSettings = false;
       if (formEnabled) {
         const nextValue = parseInt(barsInput.value, 10) || 0;
         if (nextValue < 8) {
@@ -8998,7 +9096,6 @@
     });
     if (formToggle) {
       formToggle.addEventListener("click", () => {
-        seedDrivesSettings = false;
         setFormEnabledState(!formEnabled);
         if (formEnabled && barsInput) {
           const nextValue = parseInt(barsInput.value, 10) || 0;
@@ -9008,11 +9105,11 @@
         }
         updateReadouts();
         render();
+        pushHistory();
       });
     }
     if (formComplexityInput) {
       formComplexityInput.addEventListener("input", () => {
-        seedDrivesSettings = false;
         updateReadouts();
         if (formEnabled) {
           render();
@@ -9020,20 +9117,16 @@
       });
     }
     densityInput.addEventListener("input", () => {
-      seedDrivesSettings = false;
       updateReadouts();
     });
     colorInput.addEventListener("input", () => {
-      seedDrivesSettings = false;
       updateReadouts();
       render();
     });
     modulationInput.addEventListener("input", () => {
-      seedDrivesSettings = false;
       updateReadouts();
     });
     subdivisionDensityInput.addEventListener("input", () => {
-      seedDrivesSettings = false;
       updateReadouts();
     });
     if (bassDensityInput) {
@@ -9342,7 +9435,6 @@
       });
     }
     tempoInput.addEventListener("input", () => {
-      seedDrivesSettings = false;
       updateReadouts();
       if (isPlaying && (!midiEnabled || !externalBpm)) {
         const resumeIndex = currentChordIndex >= 0 ? currentChordIndex : 0;
@@ -9352,23 +9444,19 @@
     });
     if (subdivisionInput) {
       subdivisionInput.addEventListener("change", () => {
-        seedDrivesSettings = false;
       });
     }
     if (keySelect) {
       keySelect.addEventListener("change", () => {
-        seedDrivesSettings = false;
       });
     }
 
     if (genreMain && genreSub) {
       genreMain.addEventListener("change", () => {
-        seedDrivesSettings = false;
         populateSubgenres(genreMain.value);
         render();
       });
       genreSub.addEventListener("change", () => {
-        seedDrivesSettings = false;
         render();
       });
     }
@@ -9541,9 +9629,28 @@
       routeClose.addEventListener("click", closeRouteModal);
     }
 
+    if (undoButton) {
+      updateHistoryButtons();
+      undoButton.addEventListener("click", () => {
+        if (historyIndex <= 0) return;
+        historyIndex -= 1;
+        applySnapshot(historyStack[historyIndex]);
+      });
+    }
+
+    if (redoButton) {
+      updateHistoryButtons();
+      redoButton.addEventListener("click", () => {
+        if (historyIndex >= historyStack.length - 1) return;
+        historyIndex += 1;
+        applySnapshot(historyStack[historyIndex]);
+      });
+    }
+
     if (songToggle) {
       songToggle.addEventListener("click", () => {
         setSongMode(!songMode);
+        pushHistory();
       });
     }
 
@@ -9644,6 +9751,7 @@
     if (resetAll) {
       resetAll.addEventListener("click", () => {
         resetToDefaults();
+        pushHistory();
       });
     }
 
@@ -9661,6 +9769,7 @@
     }
 
     render();
+    pushHistory();
   </script>
 </body>
 </html>
