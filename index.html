@@ -4096,6 +4096,7 @@
         tomMid: 47,
         tomHigh: 50
       };
+      let stepBeat = 1;
 
       function pushHit(step, note, velocity, durSteps = 1, barIndex, seen) {
         const key = `${step}-${note}`;
@@ -4117,7 +4118,7 @@
         const resolvedStyle = resolveDrumStyle(barMain, barGenre, style);
         const preset = getDrumPatternPreset(barGenre, barMain, resolvedStyle, rng);
         const stepsPerBar = preset.stepsPerBar;
-        const stepBeat = 4 / stepsPerBar;
+        stepBeat = 4 / stepsPerBar;
         const hatKeep = Math.min(1, 0.45 + density * 0.55);
         const hatSteps = (preset.hat || []).filter(step => rng() < hatKeep);
         const rideSteps = preset.ride || [];
